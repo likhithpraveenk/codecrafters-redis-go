@@ -19,9 +19,10 @@ func main() {
 		conn, err := l.Accept()
 		if err != nil {
 			fmt.Println("Error accepting connection: ", err.Error())
-			os.Exit(1)
+			continue
 		}
-		handleConnection(conn)
+		fmt.Println("Connection Accepted!")
+		go handleConnection(conn)
 	}
 }
 
@@ -29,10 +30,11 @@ func handleConnection(conn net.Conn) {
 	defer conn.Close()
 	buf := make([]byte, 1024)
 	for {
-		_, err := conn.Read(buf)
+		n, err := conn.Read(buf)
 		if err != nil {
 			return
 		}
+		fmt.Printf("Received %d bytes: %q\n", n, buf[:n])
 		_, err = conn.Write([]byte("+PONG\r\n"))
 		if err != nil {
 			return
