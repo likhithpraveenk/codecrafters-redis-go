@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 )
 
@@ -37,7 +38,18 @@ func handleCommand(cmd []string, conn net.Conn) error {
 			conn.Write(encodeError("wrong arguments for 'SET'"))
 			return nil
 		}
-		setValue(cmd[1], cmd[2])
+		key := cmd[1]
+		value := cmd[2]
+		expiry := 0
+
+		if len(cmd) >= 5 && strings.ToUpper(cmd[3]) == "PX" {
+			milliSec, err := strconv.Atoi(cmd[4])
+			if err != nil || milliSec <= 0 {
+				conn.Write(encodeError("invalid expire time"))
+			}
+			expiry = milliSec
+		}
+		setValue(key, value, expiry)
 		conn.Write(encodeSimpleString("OK"))
 	case "GET":
 		if len(cmd) < 2 {
