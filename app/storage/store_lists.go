@@ -27,6 +27,29 @@ func LRPush(key string, values []string, toLeft bool) (int, error) {
 	return len(list), nil
 }
 
+func LPop(key string) (string, bool) {
+	mu.Lock()
+	defer mu.Unlock()
+
+	it, exists := store[key]
+	if !exists || it.typ != TypeList {
+		return "", false
+	}
+	list := it.value.([]string)
+	if len(list) == 0 {
+		return "", false
+	}
+	value := list[0]
+	rest := list[1:]
+	if len(rest) == 0 {
+		delete(store, key)
+	} else {
+		it.value = rest
+		store[key] = it
+	}
+	return value, true
+}
+
 func ListLength(key string) (int, error) {
 	mu.RLock()
 	defer mu.RUnlock()

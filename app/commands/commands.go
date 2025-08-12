@@ -9,4 +9,5 @@ func Init() {
 	registerCommand("LPUSH", handleLPush)
 	registerCommand("LRANGE", handleLRange)
 	registerCommand("LLEN", handleLLen)
+	registerCommand("LPOP", handleLPop)
 }

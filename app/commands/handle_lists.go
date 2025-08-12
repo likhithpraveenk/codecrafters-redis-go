@@ -75,3 +75,18 @@ func handleLLen(cmd []string, conn net.Conn) error {
 	return writeErr
 
 }
+
+func handleLPop(cmd []string, conn net.Conn) error {
+	if len(cmd) < 2 {
+		_, err := conn.Write(protocol.EncodeError("wrong arguments for 'LPOP'"))
+		return err
+	}
+	key := cmd[1]
+	value, ok := store.LPop(key)
+	if !ok {
+		_, err := conn.Write(protocol.EncodeNullString())
+		return err
+	}
+	_, err := conn.Write(protocol.EncodeBulkString(value))
+	return err
+}

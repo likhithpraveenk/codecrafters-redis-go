@@ -51,7 +51,7 @@ func handleGet(cmd []string, conn net.Conn) error {
 	}
 	val, ok := store.GetValue(cmd[1])
 	if !ok {
-		_, err := conn.Write([]byte("$-1\r\n"))
+		_, err := conn.Write(protocol.EncodeNullString())
 		return err
 	} else {
 		_, err := conn.Write(protocol.EncodeBulkString(val))

@@ -18,6 +18,10 @@ func EncodeBulkString(s string) []byte {
 	return fmt.Appendf(nil, "$%d\r\n%s\r\n", len(s), s)
 }
 
+func EncodeNullString() []byte {
+	return fmt.Appendf(nil, "$-1\r\n")
+}
+
 func EncodeInteger(n int) []byte {
 	i := strconv.Itoa(n)
 	return fmt.Appendf(nil, ":%v\r\n", i)
