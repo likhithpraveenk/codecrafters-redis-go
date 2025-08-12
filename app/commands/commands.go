@@ -15,6 +15,7 @@ func Init() {
 	registerCommand("SET", handleSet)
 	registerCommand("GET", handleGet)
 	registerCommand("RPUSH", handleRPush)
+	registerCommand("LPUSH", handleLPush)
 	registerCommand("LRANGE", handleLRange)
 }
 
@@ -69,20 +70,32 @@ func handleGet(cmd []string, conn net.Conn) error {
 
 }
 
-func handleRPush(cmd []string, conn net.Conn) error {
+func handlePush(cmd []string, conn net.Conn, toLeft bool) error {
 	if len(cmd) < 3 {
-		conn.Write(protocol.EncodeError("wrong arguments for 'RPUSH'"))
+		name := "RPUSH"
+		if toLeft {
+			name = "LPUSH"
+		}
+		conn.Write(protocol.EncodeError("wrong arguments for '" + name + "'"))
 		return nil
 	}
 	key := cmd[1]
 	values := cmd[2:]
-	length, err := store.RPush(key, values)
+	length, err := store.LRPush(key, values, toLeft)
 	if err != nil {
 		conn.Write(protocol.EncodeError(err.Error()))
 		return nil
 	}
 	_, err = conn.Write(protocol.EncodeInteger(length))
 	return err
+}
+
+func handleRPush(cmd []string, conn net.Conn) error {
+	return handlePush(cmd, conn, false)
+}
+
+func handleLPush(cmd []string, conn net.Conn) error {
+	return handlePush(cmd, conn, true)
 }
 
 func handleLRange(cmd []string, conn net.Conn) error {

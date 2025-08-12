@@ -54,7 +54,7 @@ func GetValue(key string) (string, bool) {
 	return it.value.(string), ok
 }
 
-func RPush(key string, values []string) (int, error) {
+func LRPush(key string, values []string, toLeft bool) (int, error) {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -65,7 +65,13 @@ func RPush(key string, values []string) (int, error) {
 		return 0, fmt.Errorf("WRONGTYPE operation against key %v", key)
 	}
 	list := it.value.([]string)
-	list = append(list, values...)
+	if toLeft {
+		for _, v := range values {
+			list = append([]string{v}, list...)
+		}
+	} else {
+		list = append(list, values...)
+	}
 	it.value = list
 	store[key] = it
 	return len(list), nil
