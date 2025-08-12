@@ -82,6 +82,15 @@ func LRange(key string, start int, stop int) ([]string, error) {
 	}
 	list := it.value.([]string)
 	n := len(list)
+	if start < 0 {
+		start = n + start
+	}
+	if stop < 0 {
+		stop = n + stop
+	}
+	if start < 0 {
+		start = 0
+	}
 	if stop >= n {
 		stop = n - 1
 	}
