@@ -15,6 +15,7 @@ func Init() {
 	registerCommand("SET", handleSet)
 	registerCommand("GET", handleGet)
 	registerCommand("RPUSH", handleRPush)
+	registerCommand("LRANGE", handleLRange)
 }
 
 func handlePing(cmd []string, conn net.Conn) error {
@@ -82,4 +83,29 @@ func handleRPush(cmd []string, conn net.Conn) error {
 	}
 	_, err = conn.Write(protocol.EncodeInteger(length))
 	return err
+}
+
+func handleLRange(cmd []string, conn net.Conn) error {
+	if len(cmd) < 4 {
+		conn.Write(protocol.EncodeError("wrong arguments for 'LRange'"))
+		return nil
+	}
+	key := cmd[1]
+	start, err := strconv.Atoi(cmd[2])
+	if err != nil {
+		conn.Write(protocol.EncodeError("value is not an integer or out of range"))
+		return nil
+	}
+	stop, err := strconv.Atoi(cmd[3])
+	if err != nil {
+		conn.Write(protocol.EncodeError("value is not an integer or out of range"))
+		return nil
+	}
+	values, err := store.LRange(key, start, stop)
+	if err != nil {
+		conn.Write(protocol.EncodeError(err.Error()))
+		return nil
+	}
+	conn.Write(protocol.EncodeArray(values))
+	return nil
 }

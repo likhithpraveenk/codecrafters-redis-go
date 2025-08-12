@@ -70,3 +70,23 @@ func RPush(key string, values []string) (int, error) {
 	store[key] = it
 	return len(list), nil
 }
+
+func LRange(key string, start int, stop int) ([]string, error) {
+	mu.RLock()
+	defer mu.RUnlock()
+	it, exists := store[key]
+	if !exists {
+		return []string{}, nil
+	} else if it.typ != TypeList {
+		return nil, fmt.Errorf("WRONGTYPE operation against key %v", key)
+	}
+	list := it.value.([]string)
+	n := len(list)
+	if stop >= n {
+		stop = n - 1
+	}
+	if start > stop || start >= n {
+		return []string{}, nil
+	}
+	return list[start : stop+1], nil
+}
