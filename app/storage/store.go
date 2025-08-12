@@ -62,7 +62,7 @@ func LRPush(key string, values []string, toLeft bool) (int, error) {
 	if !exists {
 		it = item{typ: TypeList, value: []string{}}
 	} else if it.typ != TypeList {
-		return 0, fmt.Errorf("WRONGTYPE operation against key %v", key)
+		return 0, fmt.Errorf("WRONGTYPE Operation against a key")
 	}
 	list := it.value.([]string)
 	if toLeft {
@@ -77,6 +77,19 @@ func LRPush(key string, values []string, toLeft bool) (int, error) {
 	return len(list), nil
 }
 
+func ListLength(key string) (int, error) {
+	mu.RLock()
+	defer mu.RUnlock()
+	it, exists := store[key]
+	if !exists {
+		return 0, nil
+	} else if it.typ != TypeList {
+		return 0, fmt.Errorf("WRONGTYPE Operation against a key")
+	}
+	list := it.value.([]string)
+	return len(list), nil
+}
+
 func LRange(key string, start int, stop int) ([]string, error) {
 	mu.RLock()
 	defer mu.RUnlock()
@@ -84,7 +97,7 @@ func LRange(key string, start int, stop int) ([]string, error) {
 	if !exists {
 		return []string{}, nil
 	} else if it.typ != TypeList {
-		return nil, fmt.Errorf("WRONGTYPE operation against key %v", key)
+		return nil, fmt.Errorf("WRONGTYPE Operation against a key")
 	}
 	list := it.value.([]string)
 	n := len(list)
