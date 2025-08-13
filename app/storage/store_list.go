@@ -8,10 +8,10 @@ import (
 func notifyWaiters(key string) {
 	waitersMu.Lock()
 	defer waitersMu.Unlock()
-	for _, ch := range waiters[key] {
-		close(ch)
+	if chans, ok := waiters[key]; ok && len(chans) > 0 {
+		close(chans[0])
+		waiters[key] = chans[1:]
 	}
-	waiters[key] = nil
 }
 
 func LRPush(key string, values []string, toLeft bool) (int, error) {
@@ -62,17 +62,17 @@ func LPop(key string) (string, bool) {
 }
 
 func BLPop(keys []string, timeout time.Duration) (string, string, error) {
-	infinite := timeout == 0
 	var deadline time.Time
-	if !infinite {
+	if timeout != 0 {
 		deadline = time.Now().Add(timeout)
 	}
+	waitCh := make(chan struct{}, 1)
+	defer cleanupWaiters(keys, waitCh)
+
 	for {
 		if key, val, ok := tryPopFromKeys(keys); ok {
 			return key, val, nil
 		}
-
-		waitCh := make(chan struct{})
 
 		waitersMu.Lock()
 		for _, key := range keys {
@@ -80,19 +80,17 @@ func BLPop(keys []string, timeout time.Duration) (string, string, error) {
 		}
 		waitersMu.Unlock()
 
-		if infinite {
+		if timeout == 0 {
 			<-waitCh
 		} else {
 			waitTime := time.Until(deadline)
 			if waitTime <= 0 {
-				cleanupWaiters(keys, waitCh)
 				return "", "", nil
 			}
 
 			select {
 			case <-waitCh:
 			case <-time.After(waitTime):
-				cleanupWaiters(keys, waitCh)
 				return "", "", nil
 			}
 		}
