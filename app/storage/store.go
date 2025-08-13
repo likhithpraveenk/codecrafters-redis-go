@@ -22,6 +22,11 @@ type item struct {
 	expiresAt time.Time
 }
 
+type StreamEntry struct {
+	ID     string
+	Fields map[string]string
+}
+
 var (
 	store = make(map[string]item)
 	mu    sync.RWMutex

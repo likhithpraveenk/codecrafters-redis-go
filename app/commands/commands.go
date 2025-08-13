@@ -17,6 +17,7 @@ func Init() {
 	registerCommand("LPOP", handleLPop)
 	registerCommand("BLPOP", handleBLPop)
 	registerCommand("TYPE", handleType)
+	registerCommand("XADD", handleXAdd)
 }
 
 var commandHandlers = map[string]func([]string, net.Conn) error{}
