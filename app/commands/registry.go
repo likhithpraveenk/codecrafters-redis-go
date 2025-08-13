@@ -15,3 +15,8 @@ func GetHandler(cmd string) (func([]string, net.Conn) error, bool) {
 	h, ok := commandHandlers[cmd]
 	return h, ok
 }
+
+func writeToConn(conn net.Conn, resp []byte) error {
+	_, err := conn.Write(resp)
+	return err
+}

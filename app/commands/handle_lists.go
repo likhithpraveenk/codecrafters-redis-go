@@ -14,18 +14,15 @@ func handlePush(cmd []string, conn net.Conn, toLeft bool) error {
 		if toLeft {
 			name = "LPUSH"
 		}
-		conn.Write(protocol.EncodeError("wrong arguments for '" + name + "'"))
-		return nil
+		return writeToConn(conn, protocol.EncodeError("wrong arguments for '"+name+"'"))
 	}
 	key := cmd[1]
 	values := cmd[2:]
 	length, err := store.LRPush(key, values, toLeft)
 	if err != nil {
-		conn.Write(protocol.EncodeError(err.Error()))
-		return nil
+		return writeToConn(conn, protocol.EncodeError(err.Error()))
 	}
-	_, err = conn.Write(protocol.EncodeInteger(length))
-	return err
+	return writeToConn(conn, protocol.EncodeInteger(length))
 }
 
 func handleRPush(cmd []string, conn net.Conn) error {
@@ -38,71 +35,57 @@ func handleLPush(cmd []string, conn net.Conn) error {
 
 func handleLRange(cmd []string, conn net.Conn) error {
 	if len(cmd) < 4 {
-		conn.Write(protocol.EncodeError("wrong arguments for 'LRange'"))
-		return nil
+		return writeToConn(conn, protocol.EncodeError("wrong arguments for 'LRange'"))
 	}
 	key := cmd[1]
 	start, err := strconv.Atoi(cmd[2])
 	if err != nil {
-		conn.Write(protocol.EncodeError("value is not an integer or out of range"))
-		return nil
+		return writeToConn(conn, protocol.EncodeError("value is not an integer"))
 	}
 	stop, err := strconv.Atoi(cmd[3])
 	if err != nil {
-		conn.Write(protocol.EncodeError("value is not an integer or out of range"))
-		return nil
+		return writeToConn(conn, protocol.EncodeError("value is not an integer"))
 	}
 	values, err := store.LRange(key, start, stop)
 	if err != nil {
-		conn.Write(protocol.EncodeError(err.Error()))
-		return nil
+		return writeToConn(conn, protocol.EncodeError(err.Error()))
 	}
-	conn.Write(protocol.EncodeArray(values))
-	return nil
+	return writeToConn(conn, protocol.EncodeArray(values))
 }
 
 func handleLLen(cmd []string, conn net.Conn) error {
 	if len(cmd) < 2 {
-		conn.Write(protocol.EncodeError("wrong arguments for 'LLEN'"))
-		return nil
+		return writeToConn(conn, protocol.EncodeError("wrong arguments for 'LLEN'"))
 	}
 	val, err := store.ListLength(cmd[1])
 	if err != nil {
-		_, writeErr := conn.Write(protocol.EncodeError(err.Error()))
-		return writeErr
+		return writeToConn(conn, protocol.EncodeError(err.Error()))
 	}
-	_, writeErr := conn.Write(protocol.EncodeInteger(val))
-	return writeErr
+	return writeToConn(conn, protocol.EncodeInteger(val))
 
 }
 
 func handleLPop(cmd []string, conn net.Conn) error {
 	if len(cmd) < 2 {
-		_, err := conn.Write(protocol.EncodeError("wrong arguments for 'LPOP'"))
-		return err
+		return writeToConn(conn, protocol.EncodeError("wrong arguments for 'LPOP'"))
 	}
 	key := cmd[1]
 	if len(cmd) > 2 {
 		count, err := strconv.Atoi(cmd[2])
 		if err != nil || count <= 0 {
-			_, writeErr := conn.Write(protocol.EncodeError("count must be a positive integer"))
-			return writeErr
+			return writeToConn(conn, protocol.EncodeError("count must be a positive integer"))
 		}
 		values, err := store.LPopCount(key, count)
 		if err != nil {
-			_, err := conn.Write(protocol.EncodeError(err.Error()))
-			return err
+			return writeToConn(conn, protocol.EncodeError(err.Error()))
 		}
-		_, writeErr := conn.Write(protocol.EncodeArray(values))
-		return writeErr
+		return writeToConn(conn, protocol.EncodeArray(values))
 
 	} else {
 		value, ok := store.LPop(key)
 		if !ok {
-			_, writeErr := conn.Write(protocol.EncodeNullString())
-			return writeErr
+			return writeToConn(conn, protocol.EncodeNullString())
 		}
-		_, writeErr := conn.Write(protocol.EncodeBulkString(value))
-		return writeErr
+		return writeToConn(conn, protocol.EncodeBulkString(value))
 	}
 }
