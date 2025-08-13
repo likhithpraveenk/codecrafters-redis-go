@@ -47,15 +47,18 @@ func validateAndGenerateStreamID(id string, lastID string) (string, error) {
 			}
 		}
 		return fmt.Sprintf("%s-%d", ms, seq), nil
-	case strings.HasSuffix("-*", id):
-		ms := strings.TrimSuffix("-*", id)
+	case strings.HasSuffix(id, "-*"):
+		ms := strings.TrimSuffix(id, "-*")
 		msInt, err := strconv.ParseInt(ms, 10, 64)
 		if err != nil || msInt < 0 {
 			return "", fmt.Errorf("invalid stream ID specified")
 		}
 		var seq int64 = 0
-		if msInt == lastMS {
+		switch msInt {
+		case lastMS:
 			seq = lastSeq + 1
+		case 0:
+			seq = 1
 		}
 		if !isIDGreater(msInt, seq, lastMS, lastSeq) {
 			return "", fmt.Errorf("ID specified is equal or smaller than the target stream top item")
