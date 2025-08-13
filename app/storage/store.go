@@ -22,3 +22,8 @@ var (
 	store = make(map[string]item)
 	mu    sync.RWMutex
 )
+
+var (
+	waitersMu sync.Mutex
+	waiters   = make(map[string][]chan struct{})
+)

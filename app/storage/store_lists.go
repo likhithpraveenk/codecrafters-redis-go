@@ -2,7 +2,17 @@ package store
 
 import (
 	"fmt"
+	"time"
 )
+
+func notifyWaiters(key string) {
+	waitersMu.Lock()
+	defer waitersMu.Unlock()
+	for _, ch := range waiters[key] {
+		close(ch)
+	}
+	waiters[key] = nil
+}
 
 func LRPush(key string, values []string, toLeft bool) (int, error) {
 	mu.Lock()
@@ -24,6 +34,7 @@ func LRPush(key string, values []string, toLeft bool) (int, error) {
 	}
 	it.value = list
 	store[key] = it
+	notifyWaiters(key)
 	return len(list), nil
 }
 
@@ -48,6 +59,77 @@ func LPop(key string) (string, bool) {
 		store[key] = it
 	}
 	return value, true
+}
+
+func BLPop(keys []string, timeout time.Duration) (string, string, error) {
+	infinite := timeout == 0
+	var deadline time.Time
+	if !infinite {
+		deadline = time.Now().Add(timeout)
+	}
+	for {
+		if key, val, ok := tryPopFromKeys(keys); ok {
+			return key, val, nil
+		}
+
+		waitCh := make(chan struct{})
+
+		waitersMu.Lock()
+		for _, key := range keys {
+			waiters[key] = append(waiters[key], waitCh)
+		}
+		waitersMu.Unlock()
+
+		if infinite {
+			<-waitCh
+		} else {
+			waitTime := time.Until(deadline)
+			if waitTime <= 0 {
+				cleanupWaiters(keys, waitCh)
+				return "", "", nil
+			}
+
+			select {
+			case <-waitCh:
+			case <-time.After(waitTime):
+				cleanupWaiters(keys, waitCh)
+				return "", "", nil
+			}
+		}
+	}
+}
+
+func tryPopFromKeys(keys []string) (string, string, bool) {
+	mu.Lock()
+	defer mu.Unlock()
+	for _, key := range keys {
+		it, exists := store[key]
+		if exists && it.typ == TypeList {
+			list := it.value.([]string)
+			if len(list) > 0 {
+				val := list[0]
+				it.value = list[1:]
+				store[key] = it
+				return key, val, true
+			}
+		}
+	}
+	return "", "", false
+}
+
+func cleanupWaiters(keys []string, waitCh chan struct{}) {
+	waitersMu.Lock()
+	defer waitersMu.Unlock()
+	for _, key := range keys {
+		chans := waiters[key]
+		for i, ch := range chans {
+			if ch == waitCh {
+				waiters[key] = append(chans[:i], chans[i+1:]...)
+				break
+			}
+		}
+	}
+
 }
 
 func LPopCount(key string, count int) ([]string, error) {
