@@ -82,11 +82,27 @@ func handleLPop(cmd []string, conn net.Conn) error {
 		return err
 	}
 	key := cmd[1]
-	value, ok := store.LPop(key)
-	if !ok {
-		_, err := conn.Write(protocol.EncodeNullString())
-		return err
+	if len(cmd) > 2 {
+		count, err := strconv.Atoi(cmd[2])
+		if err != nil || count <= 0 {
+			_, writeErr := conn.Write(protocol.EncodeError("count must be a positive integer"))
+			return writeErr
+		}
+		values, err := store.LPopCount(key, count)
+		if err != nil {
+			_, err := conn.Write(protocol.EncodeError(err.Error()))
+			return err
+		}
+		_, writeErr := conn.Write(protocol.EncodeArray(values))
+		return writeErr
+
+	} else {
+		value, ok := store.LPop(key)
+		if !ok {
+			_, writeErr := conn.Write(protocol.EncodeNullString())
+			return writeErr
+		}
+		_, writeErr := conn.Write(protocol.EncodeBulkString(value))
+		return writeErr
 	}
-	_, err := conn.Write(protocol.EncodeBulkString(value))
-	return err
 }

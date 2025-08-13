@@ -50,6 +50,32 @@ func LPop(key string) (string, bool) {
 	return value, true
 }
 
+func LPopCount(key string, count int) ([]string, error) {
+	it, exists := store[key]
+	if !exists {
+		return nil, fmt.Errorf("key does not exist")
+	}
+	if it.typ != TypeList {
+		return nil, fmt.Errorf("WRONGTYPE Operation against a key")
+	}
+	list := it.value.([]string)
+	if len(list) == 0 {
+		return []string{}, nil
+	}
+	if count > len(list) {
+		count = len(list)
+	}
+	values := list[:count]
+	rest := list[count:]
+	if len(rest) == 0 {
+		delete(store, key)
+	} else {
+		it.value = rest
+		store[key] = it
+	}
+	return values, nil
+}
+
 func ListLength(key string) (int, error) {
 	mu.RLock()
 	defer mu.RUnlock()
