@@ -10,6 +10,10 @@ type valueType int
 const (
 	TypeString valueType = iota
 	TypeList
+	TypeStream
+	TypeSet
+	TypeZSet
+	TypeHash
 )
 
 type item struct {
