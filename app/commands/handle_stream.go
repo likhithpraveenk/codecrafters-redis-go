@@ -2,6 +2,9 @@ package commands
 
 import (
 	"net"
+	"strconv"
+	"strings"
+	"time"
 
 	store "github.com/codecrafters-io/redis-starter-go/app/storage"
 )
@@ -36,22 +39,59 @@ func handleXRange(cmd []string, conn net.Conn) error {
 }
 
 func handleXRead(cmd []string, conn net.Conn) error {
-	if len(cmd) < 4 || len(cmd)%2 != 0 {
+	if len(cmd) < 4 {
 		return writeToConn(conn, Encode(ErrorString("wrong number of arguments for 'XREAD'")))
 	}
-	keysIds := cmd[2:]
-	keysLen := len(keysIds) / 2
-	keys, ids := []string{}, []string{}
-	for i, s := range keysIds {
-		if i < keysLen {
-			keys = append(keys, s)
-		} else {
-			ids = append(ids, s)
+	var blockMs int
+	var hasBlock bool
+	var i int
+	if strings.ToUpper(cmd[1]) == "BLOCK" {
+		hasBlock = true
+		if len(cmd) < 6 {
+			return writeToConn(conn, Encode(ErrorString("wrong number of arguments for 'XREAD'")))
 		}
+		ms, err := strconv.Atoi(cmd[2])
+		if err != nil {
+			return writeToConn(conn, Encode(ErrorString("invalid BLOCK timeout")))
+		}
+		blockMs = ms
+		i = 3
+	} else {
+		hasBlock = false
+		i = 1
 	}
+
+	if strings.ToUpper(cmd[i]) != "STREAMS" {
+		return writeToConn(conn, Encode(ErrorString("syntax error")))
+	}
+
+	keysIds := cmd[i+1:]
+	if len(keysIds)%2 != 0 {
+		return writeToConn(conn, Encode(ErrorString("wrong number of arguments for 'XREAD'")))
+	}
+
+	keysLen := len(keysIds) / 2
+	keys := keysIds[:keysLen]
+	ids := keysIds[keysLen:]
+
 	result, err := store.XRead(keys, ids)
 	if err != nil {
 		return writeToConn(conn, Encode(ErrorString(err.Error())))
 	}
-	return writeToConn(conn, Encode(result))
+
+	if len(result) > 0 || !hasBlock {
+		return writeToConn(conn, Encode(result))
+	}
+
+	timeout := time.Duration(blockMs) * time.Millisecond
+	if blockMs == 0 {
+		timeout = 0
+	}
+
+	blockResult, blockErr := store.XReadBlock(keys, ids, timeout)
+	if blockErr != nil {
+		return writeToConn(conn, Encode(ErrorString(blockErr.Error())))
+	}
+
+	return writeToConn(conn, Encode(blockResult))
 }

@@ -62,37 +62,32 @@ func LPop(key string) (string, bool) {
 }
 
 func BLPop(keys []string, timeout time.Duration) (string, string, error) {
-	var deadline time.Time
-	if timeout != 0 {
-		deadline = time.Now().Add(timeout)
-	}
 	waitCh := make(chan struct{}, 1)
+	waitersMu.Lock()
+	for _, key := range keys {
+		waiters[key] = append(waiters[key], waitCh)
+	}
+	waitersMu.Unlock()
 	defer cleanupWaiters(keys, waitCh)
+
+	var timer <-chan time.Time
+	if timeout > 0 {
+		timer = time.After(timeout)
+	}
 
 	for {
 		if key, val, ok := tryPopFromKeys(keys); ok {
 			return key, val, nil
 		}
 
-		waitersMu.Lock()
-		for _, key := range keys {
-			waiters[key] = append(waiters[key], waitCh)
-		}
-		waitersMu.Unlock()
-
-		if timeout == 0 {
-			<-waitCh
-		} else {
-			waitTime := time.Until(deadline)
-			if waitTime <= 0 {
-				return "", "", nil
-			}
-
+		if timeout > 0 {
 			select {
 			case <-waitCh:
-			case <-time.After(waitTime):
+			case <-timer:
 				return "", "", nil
 			}
+		} else {
+			<-waitCh
 		}
 	}
 }
@@ -127,7 +122,6 @@ func cleanupWaiters(keys []string, waitCh chan struct{}) {
 			}
 		}
 	}
-
 }
 
 func LPopCount(key string, count int) ([]string, error) {

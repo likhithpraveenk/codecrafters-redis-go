@@ -43,6 +43,10 @@ func encodeValue(b *strings.Builder, value any) {
 		b.WriteString("\r\n")
 
 	case []string:
+		if v == nil {
+			b.WriteString("$-1\r\n")
+			return
+		}
 		b.WriteString("*")
 		b.WriteString(strconv.Itoa(len(v)))
 		b.WriteString("\r\n")
@@ -51,6 +55,10 @@ func encodeValue(b *strings.Builder, value any) {
 		}
 
 	case []any:
+		if v == nil {
+			b.WriteString("$-1\r\n")
+			return
+		}
 		b.WriteString("*")
 		b.WriteString(strconv.Itoa(len(v)))
 		b.WriteString("\r\n")
@@ -59,6 +67,10 @@ func encodeValue(b *strings.Builder, value any) {
 		}
 
 	case [][]any:
+		if v == nil {
+			b.WriteString("$-1\r\n")
+			return
+		}
 		b.WriteString("*")
 		b.WriteString(strconv.Itoa(len(v)))
 		b.WriteString("\r\n")

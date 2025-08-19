@@ -36,3 +36,8 @@ var (
 	waitersMu sync.Mutex
 	waiters   = make(map[string][]chan struct{})
 )
+
+var (
+	sWaitersMu sync.Mutex
+	sWaiters   = make(map[string][]chan struct{})
+)

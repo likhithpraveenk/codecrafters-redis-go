@@ -30,6 +30,12 @@ func XAdd(key, id string, fields []string) (string, error) {
 	stream = append(stream, StreamEntry{ID: newId, Fields: fields})
 	it.value = stream
 	store[key] = it
+	sWaitersMu.Lock()
+	for _, ch := range sWaiters[key] {
+		close(ch)
+	}
+	sWaiters[key] = nil
+	sWaitersMu.Unlock()
 	return newId, nil
 }
 
@@ -186,5 +192,82 @@ func XRead(keys, ids []string) ([][]any, error) {
 			result = append(result, []any{keys[i], matched})
 		}
 	}
+	if len(result) == 0 {
+		return nil, nil
+	}
 	return result, nil
+}
+
+func XReadBlock(keys, ids []string, timeout time.Duration) ([][]any, error) {
+	chans := make([]chan struct{}, len(keys))
+	addToStreamWaiters(keys, chans)
+	defer cleanupStreamWaiters(keys, chans)
+
+	var timer <-chan time.Time
+	if timeout > 0 {
+		timer = time.After(timeout)
+	}
+
+	for {
+		result, err := XRead(keys, ids)
+		if err != nil {
+			return nil, err
+		}
+		if len(result) > 0 {
+			return result, nil
+		}
+
+		if timeout > 0 {
+			select {
+			case <-merge(chans...):
+			case <-timer:
+				return nil, nil
+			}
+		} else {
+			<-merge(chans...)
+		}
+
+	}
+}
+
+func addToStreamWaiters(keys []string, chans []chan struct{}) {
+	sWaitersMu.Lock()
+	defer sWaitersMu.Unlock()
+	for i, key := range keys {
+		ch := make(chan struct{}, 1)
+		chans[i] = ch
+		if sWaiters == nil {
+			sWaiters = make(map[string][]chan struct{})
+		}
+		sWaiters[key] = append(sWaiters[key], ch)
+	}
+}
+
+func cleanupStreamWaiters(keys []string, chans []chan struct{}) {
+	sWaitersMu.Lock()
+	defer sWaitersMu.Unlock()
+	for i, key := range keys {
+		waits := sWaiters[key]
+		newWaiters := waits[:0]
+		for _, w := range waits {
+			if chans[i] != w {
+				newWaiters = append(newWaiters, w)
+			}
+		}
+		sWaiters[key] = newWaiters
+	}
+}
+
+func merge(cs ...chan struct{}) <-chan struct{} {
+	out := make(chan struct{}, 1)
+	for _, c := range cs {
+		go func(ch chan struct{}) {
+			<-ch
+			select {
+			case out <- struct{}{}:
+			default:
+			}
+		}(c)
+	}
+	return out
 }
