@@ -5,8 +5,19 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
+
+var (
+	sWaitersMu sync.Mutex
+	sWaiters   = make(map[string][]chan struct{})
+)
+
+type StreamEntry struct {
+	ID     string
+	Fields []string
+}
 
 func XAdd(key, id string, fields []string) (string, error) {
 	mu.Lock()
@@ -14,7 +25,7 @@ func XAdd(key, id string, fields []string) (string, error) {
 
 	it, exists := store[key]
 	if !exists {
-		it = item{typ: TypeStream, value: []StreamEntry{}}
+		it = Item{typ: TypeStream, value: []StreamEntry{}}
 	} else if it.typ != TypeStream {
 		return "", fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
 	}

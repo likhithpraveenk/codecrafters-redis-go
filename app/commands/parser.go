@@ -1,8 +1,7 @@
-package main
+package commands
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -23,12 +22,12 @@ func parseCommand(conn net.Conn) ([]string, error) {
 
 	arrayHeaderLine = strings.TrimSpace(arrayHeaderLine)
 	if len(arrayHeaderLine) == 0 || arrayHeaderLine[0] != '*' {
-		return nil, errors.New("expected array start '*'")
+		return nil, fmt.Errorf("expected array start '*'")
 	}
 
 	elementCount, err := strconv.Atoi(arrayHeaderLine[1:])
 	if err != nil {
-		return nil, errors.New("invalid array length")
+		return nil, fmt.Errorf("invalid array length")
 	}
 
 	commandParts := make([]string, 0, elementCount)
@@ -39,11 +38,11 @@ func parseCommand(conn net.Conn) ([]string, error) {
 		}
 		stringHeaderLine = strings.TrimSpace(stringHeaderLine)
 		if len(stringHeaderLine) == 0 || stringHeaderLine[0] != '$' {
-			return nil, errors.New("expected bulk string start '$'")
+			return nil, fmt.Errorf("expected bulk string start '$'")
 		}
 		stringLength, err := strconv.Atoi(stringHeaderLine[1:])
 		if err != nil {
-			return nil, errors.New("invalid bulk string length")
+			return nil, fmt.Errorf("invalid bulk string length")
 		}
 		stringData := make([]byte, stringLength+2)
 		_, err = reader.Read(stringData)

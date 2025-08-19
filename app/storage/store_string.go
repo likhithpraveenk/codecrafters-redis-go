@@ -10,7 +10,7 @@ func SetValue(key, value string, expireMS int) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	it := item{typ: TypeString, value: value}
+	it := Item{typ: TypeString, value: value}
 	if expireMS > 0 {
 		it.expiresAt = time.Now().Add(time.Duration(expireMS) * time.Millisecond)
 	}
@@ -41,7 +41,7 @@ func Increment(key string) (int64, error) {
 	defer mu.Unlock()
 	it, ok := store[key]
 	if !ok {
-		store[key] = item{typ: TypeString, value: "1"}
+		store[key] = Item{typ: TypeString, value: "1"}
 		return 1, nil
 	}
 	if it.typ != TypeString {

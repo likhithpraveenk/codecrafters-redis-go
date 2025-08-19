@@ -1,27 +1,27 @@
 package commands
 
 import (
-	"net"
+	"fmt"
 	"strconv"
 	"strings"
 
 	store "github.com/codecrafters-io/redis-starter-go/app/storage"
 )
 
-func handlePing(cmd []string, conn net.Conn) error {
-	return writeToConn(conn, Encode(SimpleString("PONG")))
+func handlePing(cmd []string) (any, error) {
+	return SimpleString("PONG"), nil
 }
 
-func handleEcho(cmd []string, conn net.Conn) error {
+func handleEcho(cmd []string) (any, error) {
 	if len(cmd) < 2 {
-		return writeToConn(conn, (Encode(ErrorString("wrong arguments for 'ECHO'"))))
+		return nil, fmt.Errorf("wrong arguments for 'ECHO'")
 	}
-	return writeToConn(conn, Encode(cmd[1]))
+	return cmd[1], nil
 }
 
-func handleSet(cmd []string, conn net.Conn) error {
+func handleSet(cmd []string) (any, error) {
 	if len(cmd) < 3 {
-		return writeToConn(conn, Encode(ErrorString("wrong arguments for 'SET'")))
+		return nil, fmt.Errorf("wrong arguments for 'SET'")
 	}
 	key := cmd[1]
 	value := cmd[2]
@@ -30,34 +30,34 @@ func handleSet(cmd []string, conn net.Conn) error {
 	if len(cmd) >= 5 && strings.ToUpper(cmd[3]) == "PX" {
 		milliSec, err := strconv.Atoi(cmd[4])
 		if err != nil || milliSec <= 0 {
-			return writeToConn(conn, Encode(ErrorString("invalid expire time")))
+			return nil, fmt.Errorf("invalid expire time")
 		}
 		expiry = milliSec
 	}
 	store.SetValue(key, value, expiry)
-	return writeToConn(conn, Encode(SimpleString("OK")))
+	return SimpleString("OK"), nil
 }
 
-func handleGet(cmd []string, conn net.Conn) error {
+func handleGet(cmd []string) (any, error) {
 	if len(cmd) < 2 {
-		return writeToConn(conn, Encode(ErrorString("wrong arguments for 'GET'")))
+		return nil, fmt.Errorf("wrong arguments for 'GET'")
 	}
 	val, ok := store.GetValue(cmd[1])
 	if !ok {
-		return writeToConn(conn, Encode(nil))
+		return nil, nil
 	} else {
-		return writeToConn(conn, Encode(val))
+		return val, nil
 	}
 }
 
-func handleIncrement(cmd []string, conn net.Conn) error {
+func handleIncrement(cmd []string) (any, error) {
 	if len(cmd) < 2 {
-		return writeToConn(conn, Encode(ErrorString("wrong arguments for 'INCR'")))
+		return nil, fmt.Errorf("wrong arguments for 'INCR'")
 	}
 	key := cmd[1]
 	val, err := store.Increment(key)
 	if err != nil {
-		return writeToConn(conn, Encode(ErrorString(err.Error())))
+		return nil, fmt.Errorf("%s", err.Error())
 	}
-	return writeToConn(conn, Encode(val))
+	return val, nil
 }

@@ -16,28 +16,13 @@ const (
 	TypeHash
 )
 
-type item struct {
+type Item struct {
 	typ       valueType
 	value     any
 	expiresAt time.Time
 }
 
-type StreamEntry struct {
-	ID     string
-	Fields []string
-}
-
 var (
-	store = make(map[string]item)
+	store = make(map[string]Item)
 	mu    sync.RWMutex
-)
-
-var (
-	waitersMu sync.Mutex
-	waiters   = make(map[string][]chan struct{})
-)
-
-var (
-	sWaitersMu sync.Mutex
-	sWaiters   = make(map[string][]chan struct{})
 )

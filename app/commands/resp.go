@@ -7,7 +7,7 @@ import (
 )
 
 type SimpleString string
-type ErrorString string
+type SimpleError string
 
 func Encode(value any) []byte {
 	var b strings.Builder
@@ -25,7 +25,7 @@ func encodeValue(b *strings.Builder, value any) {
 		b.WriteString(string(v))
 		b.WriteString("\r\n")
 
-	case ErrorString:
+	case SimpleError:
 		b.WriteString("-")
 		b.WriteString(string(v))
 		b.WriteString("\r\n")

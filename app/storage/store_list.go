@@ -2,7 +2,13 @@ package store
 
 import (
 	"fmt"
+	"sync"
 	"time"
+)
+
+var (
+	waitersMu sync.Mutex
+	waiters   = make(map[string][]chan struct{})
 )
 
 func notifyWaiters(key string) {
@@ -20,7 +26,7 @@ func LRPush(key string, values []string, toLeft bool) (int64, error) {
 
 	it, exists := store[key]
 	if !exists {
-		it = item{typ: TypeList, value: []string{}}
+		it = Item{typ: TypeList, value: []string{}}
 	} else if it.typ != TypeList {
 		return 0, fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
 	}
