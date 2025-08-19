@@ -22,7 +22,7 @@ func LRPush(key string, values []string, toLeft bool) (int, error) {
 	if !exists {
 		it = item{typ: TypeList, value: []string{}}
 	} else if it.typ != TypeList {
-		return 0, fmt.Errorf("WRONGTYPE Operation against a key")
+		return 0, fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
 	}
 	list := it.value.([]string)
 	if toLeft {
@@ -133,10 +133,10 @@ func cleanupWaiters(keys []string, waitCh chan struct{}) {
 func LPopCount(key string, count int) ([]string, error) {
 	it, exists := store[key]
 	if !exists {
-		return nil, fmt.Errorf("key does not exist")
+		return nil, fmt.Errorf("ERR The KEY '%s' does not exist", key)
 	}
 	if it.typ != TypeList {
-		return nil, fmt.Errorf("WRONGTYPE Operation against a key")
+		return nil, fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
 	}
 	list := it.value.([]string)
 	if len(list) == 0 {
@@ -163,7 +163,7 @@ func ListLength(key string) (int, error) {
 	if !exists {
 		return 0, nil
 	} else if it.typ != TypeList {
-		return 0, fmt.Errorf("WRONGTYPE Operation against a key")
+		return 0, fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
 	}
 	list := it.value.([]string)
 	return len(list), nil
@@ -176,7 +176,7 @@ func LRange(key string, start int, stop int) ([]string, error) {
 	if !exists {
 		return []string{}, nil
 	} else if it.typ != TypeList {
-		return nil, fmt.Errorf("WRONGTYPE Operation against a key")
+		return nil, fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
 	}
 	list := it.value.([]string)
 	n := len(list)

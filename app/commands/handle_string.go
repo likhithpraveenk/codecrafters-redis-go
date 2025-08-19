@@ -5,25 +5,24 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/codecrafters-io/redis-starter-go/app/protocol"
 	store "github.com/codecrafters-io/redis-starter-go/app/storage"
 )
 
 func handlePing(cmd []string, conn net.Conn) error {
-	return writeToConn(conn, protocol.EncodeSimpleString("PONG"))
+	return writeToConn(conn, Encode(SimpleString("PONG")))
 
 }
 
 func handleEcho(cmd []string, conn net.Conn) error {
 	if len(cmd) < 2 {
-		return writeToConn(conn, (protocol.EncodeError("wrong arguments for 'ECHO'")))
+		return writeToConn(conn, (Encode(ErrorString("wrong arguments for 'ECHO'"))))
 	}
-	return writeToConn(conn, protocol.EncodeBulkString(cmd[1]))
+	return writeToConn(conn, Encode(cmd[1]))
 }
 
 func handleSet(cmd []string, conn net.Conn) error {
 	if len(cmd) < 3 {
-		return writeToConn(conn, protocol.EncodeError("wrong arguments for 'SET'"))
+		return writeToConn(conn, Encode(ErrorString("wrong arguments for 'SET'")))
 	}
 	key := cmd[1]
 	value := cmd[2]
@@ -32,23 +31,23 @@ func handleSet(cmd []string, conn net.Conn) error {
 	if len(cmd) >= 5 && strings.ToUpper(cmd[3]) == "PX" {
 		milliSec, err := strconv.Atoi(cmd[4])
 		if err != nil || milliSec <= 0 {
-			return writeToConn(conn, protocol.EncodeError("invalid expire time"))
+			return writeToConn(conn, Encode(ErrorString("invalid expire time")))
 		}
 		expiry = milliSec
 	}
 	store.SetValue(key, value, expiry)
-	return writeToConn(conn, protocol.EncodeSimpleString("OK"))
+	return writeToConn(conn, Encode(SimpleString("OK")))
 
 }
 
 func handleGet(cmd []string, conn net.Conn) error {
 	if len(cmd) < 2 {
-		return writeToConn(conn, protocol.EncodeError("wrong arguments for 'GET'"))
+		return writeToConn(conn, Encode(ErrorString("wrong arguments for 'GET'")))
 	}
 	val, ok := store.GetValue(cmd[1])
 	if !ok {
-		return writeToConn(conn, protocol.EncodeNullString())
+		return writeToConn(conn, Encode(nil))
 	} else {
-		return writeToConn(conn, protocol.EncodeBulkString(val))
+		return writeToConn(conn, Encode(val))
 	}
 }

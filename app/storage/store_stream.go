@@ -16,7 +16,7 @@ func XAdd(key, id string, fields []string) (string, error) {
 	if !exists {
 		it = item{typ: TypeStream, value: []StreamEntry{}}
 	} else if it.typ != TypeStream {
-		return "", fmt.Errorf("WRONGTYPE Operation against a key")
+		return "", fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
 	}
 	stream := it.value.([]StreamEntry)
 	var lastID string
@@ -52,7 +52,7 @@ func validateAndGenerateStreamID(id string, lastID string) (string, error) {
 		ms := strings.TrimSuffix(id, "-*")
 		msInt, err := strconv.ParseInt(ms, 10, 64)
 		if err != nil || msInt < 0 {
-			return "", fmt.Errorf("invalid stream ID specified")
+			return "", fmt.Errorf("ERR invalid stream ID '%s'", id)
 		}
 		var seq int64 = 0
 		switch msInt {
@@ -62,23 +62,21 @@ func validateAndGenerateStreamID(id string, lastID string) (string, error) {
 			seq = 1
 		}
 		if !isIDGreater(msInt, seq, lastMS, lastSeq) {
-			return "", fmt.Errorf("ID specified is equal or smaller than the target stream top item")
+			return "", fmt.Errorf("ERR The ID specified is equal or smaller than the target stream top item")
 		}
 		return fmt.Sprintf("%d-%d", msInt, seq), nil
 	default:
 		parts := strings.Split(id, "-")
 		if len(parts) != 2 {
-			return "", fmt.Errorf("invalid stream ID format")
+			return "", fmt.Errorf("ERR invalid stream ID '%s'", id)
 		}
 		ms, err1 := strconv.ParseInt(parts[0], 10, 64)
 		seq, err2 := strconv.ParseInt(parts[1], 10, 64)
 		if err1 != nil || err2 != nil || ms < 0 || seq < 0 || (ms == 0 && seq == 0) {
-			errMsg := "The ID specified in XADD must be greater than 0-0"
-			return "", fmt.Errorf("%s", errMsg)
+			return "", fmt.Errorf("ERR The ID specified in XADD must be greater than 0-0")
 		}
 		if !isIDGreater(ms, seq, lastMS, lastSeq) {
-			errMsg := "The ID specified in XADD is equal or smaller than the target stream top item"
-			return "", fmt.Errorf("%s", errMsg)
+			return "", fmt.Errorf("ERR The ID specified in XADD is equal or smaller than the target stream top item")
 		}
 		return id, nil
 	}
@@ -125,14 +123,14 @@ func isIDEqual(ms, seq, lastMs, lastSeq int64) bool {
 	return false
 }
 
-func XRange(key, startStr, endStr string) ([]StreamEntry, error) {
+func XRange(key, startStr, endStr string) ([][]any, error) {
 	mu.RLock()
 	defer mu.RUnlock()
 	it, exists := store[key]
 	if !exists {
-		return []StreamEntry{}, nil
+		return [][]any{}, nil
 	} else if it.typ != TypeStream {
-		return nil, fmt.Errorf("WRONGTYPE Operation against a key")
+		return nil, fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
 	}
 	stream := it.value.([]StreamEntry)
 	var startMs, startSeq, endMs, endSeq int64
@@ -147,14 +145,45 @@ func XRange(key, startStr, endStr string) ([]StreamEntry, error) {
 		endMs, endSeq = parseIDParts(endStr)
 	}
 
-	result := make([]StreamEntry, 0)
+	result := make([][]any, 0)
 
 	for _, entry := range stream {
 		idMs, idSeq := parseIDParts(entry.ID)
 		if isIDGreater(idMs, idSeq, startMs, startSeq) || isIDEqual(idMs, idSeq, startMs, startSeq) {
 			if isIDLesser(idMs, idSeq, endMs, endSeq) || isIDEqual(idMs, idSeq, endMs, endSeq) {
-				result = append(result, entry)
+				result = append(result, []any{entry.ID, entry.Fields})
 			}
+		}
+	}
+	return result, nil
+}
+
+func XRead(keys, ids []string) ([][]any, error) {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	noOfStreams := len(keys)
+	result := make([][]any, 0)
+
+	for i := range noOfStreams {
+		item, exists := store[keys[i]]
+		if !exists {
+			continue
+		}
+		if item.typ != TypeStream {
+			return nil, fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
+		}
+		streamEntries := item.value.([]StreamEntry)
+		idMs, idSeq := parseIDParts(ids[i])
+		matched := []any{}
+		for _, entry := range streamEntries {
+			entryMs, entrySeq := parseIDParts(entry.ID)
+			if isIDGreater(entryMs, entrySeq, idMs, idSeq) {
+				matched = append(matched, []any{entry.ID, entry.Fields})
+			}
+		}
+		if len(matched) > 0 {
+			result = append(result, []any{keys[i], matched})
 		}
 	}
 	return result, nil

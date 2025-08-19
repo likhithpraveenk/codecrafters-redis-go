@@ -19,6 +19,7 @@ func Init() {
 	registerCommand("TYPE", handleType)
 	registerCommand("XADD", handleXAdd)
 	registerCommand("XRANGE", handleXRange)
+	registerCommand("XREAD", handleXRead)
 }
 
 var commandHandlers = map[string]func([]string, net.Conn) error{}

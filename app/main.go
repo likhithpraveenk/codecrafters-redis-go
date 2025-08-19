@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/commands"
-	"github.com/codecrafters-io/redis-starter-go/app/protocol"
 )
 
 func main() {
@@ -34,7 +33,7 @@ func main() {
 					return
 				}
 				if len(cmd) == 0 {
-					c.Write(protocol.EncodeError("empty command"))
+					c.Write(commands.Encode(commands.ErrorString("empty command")))
 					return
 				}
 
@@ -45,7 +44,7 @@ func main() {
 						return
 					}
 				} else {
-					c.Write(protocol.EncodeError("unknown command '" + cmd[0] + "'"))
+					c.Write(commands.Encode(commands.ErrorString("ERR unknown command '" + cmd[0] + "'")))
 				}
 			}
 		}(conn)
