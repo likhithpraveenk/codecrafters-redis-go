@@ -30,9 +30,9 @@ func encodeValue(b *strings.Builder, value any) {
 		b.WriteString(string(v))
 		b.WriteString("\r\n")
 
-	case int:
+	case int64:
 		b.WriteString(":")
-		b.WriteString(strconv.Itoa(v))
+		b.WriteString(strconv.FormatInt(v, 10))
 		b.WriteString("\r\n")
 
 	case string:

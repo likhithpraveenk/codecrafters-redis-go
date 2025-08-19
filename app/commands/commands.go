@@ -9,6 +9,7 @@ func Init() {
 	registerCommand("PING", handlePing)
 	registerCommand("ECHO", handleEcho)
 	registerCommand("SET", handleSet)
+	registerCommand("INCR", handleIncrement)
 	registerCommand("GET", handleGet)
 	registerCommand("RPUSH", handleRPush)
 	registerCommand("LPUSH", handleLPush)

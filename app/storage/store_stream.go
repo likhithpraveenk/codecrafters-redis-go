@@ -207,13 +207,10 @@ func normalizeIDs(keys, ids []string) []string {
 				entries := item.value.([]StreamEntry)
 				if len(entries) > 0 {
 					norm[i] = entries[len(entries)-1].ID
-					fmt.Println("WE ARE HEREERERER")
 					continue
 				}
 			}
 			norm[i] = "0-0"
-
-			fmt.Println("WE ARE HEREERERER")
 		} else {
 			norm[i] = ids[i]
 		}

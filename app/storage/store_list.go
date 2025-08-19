@@ -14,7 +14,7 @@ func notifyWaiters(key string) {
 	}
 }
 
-func LRPush(key string, values []string, toLeft bool) (int, error) {
+func LRPush(key string, values []string, toLeft bool) (int64, error) {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -35,7 +35,7 @@ func LRPush(key string, values []string, toLeft bool) (int, error) {
 	it.value = list
 	store[key] = it
 	notifyWaiters(key)
-	return len(list), nil
+	return int64(len(list)), nil
 }
 
 func LPop(key string) (string, bool) {
@@ -150,7 +150,7 @@ func LPopCount(key string, count int) ([]string, error) {
 	return values, nil
 }
 
-func ListLength(key string) (int, error) {
+func ListLength(key string) (int64, error) {
 	mu.RLock()
 	defer mu.RUnlock()
 	it, exists := store[key]
@@ -160,7 +160,7 @@ func ListLength(key string) (int, error) {
 		return 0, fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
 	}
 	list := it.value.([]string)
-	return len(list), nil
+	return int64(len(list)), nil
 }
 
 func LRange(key string, start int, stop int) ([]string, error) {

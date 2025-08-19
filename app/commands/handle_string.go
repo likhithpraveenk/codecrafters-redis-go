@@ -10,7 +10,6 @@ import (
 
 func handlePing(cmd []string, conn net.Conn) error {
 	return writeToConn(conn, Encode(SimpleString("PONG")))
-
 }
 
 func handleEcho(cmd []string, conn net.Conn) error {
@@ -37,7 +36,6 @@ func handleSet(cmd []string, conn net.Conn) error {
 	}
 	store.SetValue(key, value, expiry)
 	return writeToConn(conn, Encode(SimpleString("OK")))
-
 }
 
 func handleGet(cmd []string, conn net.Conn) error {
@@ -50,4 +48,16 @@ func handleGet(cmd []string, conn net.Conn) error {
 	} else {
 		return writeToConn(conn, Encode(val))
 	}
+}
+
+func handleIncrement(cmd []string, conn net.Conn) error {
+	if len(cmd) < 2 {
+		return writeToConn(conn, Encode(ErrorString("wrong arguments for 'INCR'")))
+	}
+	key := cmd[1]
+	val, err := store.Increment(key)
+	if err != nil {
+		return writeToConn(conn, Encode(ErrorString(err.Error())))
+	}
+	return writeToConn(conn, Encode(val))
 }
