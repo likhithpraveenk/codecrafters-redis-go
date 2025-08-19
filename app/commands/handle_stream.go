@@ -13,13 +13,25 @@ func handleXAdd(cmd []string, conn net.Conn) error {
 	}
 	key := cmd[1]
 	id := cmd[2]
-	fields := make(map[string]string)
-	for i := 3; i < len(cmd); i += 2 {
-		fields[cmd[i]] = cmd[i+1]
+	fields := make([]string, 0)
+	for i := 3; i < len(cmd); i++ {
+		fields = append(fields, cmd[i])
 	}
 	id, err := store.XAdd(key, id, fields)
 	if err != nil {
 		return writeToConn(conn, protocol.EncodeError(err.Error()))
 	}
 	return writeToConn(conn, protocol.EncodeBulkString(id))
+}
+
+func handleXRange(cmd []string, conn net.Conn) error {
+	if len(cmd) < 4 {
+		return writeToConn(conn, protocol.EncodeError("wrong number of arguments for 'XRANGE'"))
+	}
+	key, start, end := cmd[1], cmd[2], cmd[3]
+	result, err := store.XRange(key, start, end)
+	if err != nil {
+		return writeToConn(conn, protocol.EncodeError(err.Error()))
+	}
+	return writeToConn(conn, protocol.EncodeNested(result))
 }

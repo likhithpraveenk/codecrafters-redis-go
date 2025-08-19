@@ -24,7 +24,7 @@ type item struct {
 
 type StreamEntry struct {
 	ID     string
-	Fields map[string]string
+	Fields []string
 }
 
 var (

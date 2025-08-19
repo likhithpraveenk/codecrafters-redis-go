@@ -2,12 +2,13 @@ package store
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
 )
 
-func XAdd(key, id string, fields map[string]string) (string, error) {
+func XAdd(key, id string, fields []string) (string, error) {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -105,4 +106,56 @@ func isIDGreater(ms, seq, lastMs, lastSeq int64) bool {
 		return true
 	}
 	return false
+}
+
+func isIDLesser(ms, seq, lastMs, lastSeq int64) bool {
+	if ms < lastMs {
+		return true
+	}
+	if ms == lastMs && seq < lastSeq {
+		return true
+	}
+	return false
+}
+
+func isIDEqual(ms, seq, lastMs, lastSeq int64) bool {
+	if ms == lastMs && seq == lastSeq {
+		return true
+	}
+	return false
+}
+
+func XRange(key, startStr, endStr string) ([]StreamEntry, error) {
+	mu.RLock()
+	defer mu.RUnlock()
+	it, exists := store[key]
+	if !exists {
+		return []StreamEntry{}, nil
+	} else if it.typ != TypeStream {
+		return nil, fmt.Errorf("WRONGTYPE Operation against a key")
+	}
+	stream := it.value.([]StreamEntry)
+	var startMs, startSeq, endMs, endSeq int64
+	if startStr == "-" {
+		startMs, startSeq = 0, 0
+	} else {
+		startMs, startSeq = parseIDParts(startStr)
+	}
+	if endStr == "+" {
+		endMs, endSeq = math.MaxInt64, math.MaxInt64
+	} else {
+		endMs, endSeq = parseIDParts(endStr)
+	}
+
+	result := make([]StreamEntry, 0)
+
+	for _, entry := range stream {
+		idMs, idSeq := parseIDParts(entry.ID)
+		if isIDGreater(idMs, idSeq, startMs, startSeq) || isIDEqual(idMs, idSeq, startMs, startSeq) {
+			if isIDLesser(idMs, idSeq, endMs, endSeq) || isIDEqual(idMs, idSeq, endMs, endSeq) {
+				result = append(result, entry)
+			}
+		}
+	}
+	return result, nil
 }

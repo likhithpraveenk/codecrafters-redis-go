@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	store "github.com/codecrafters-io/redis-starter-go/app/storage"
 )
 
 func EncodeSimpleString(s string) []byte {
@@ -25,6 +27,20 @@ func EncodeNullString() []byte {
 func EncodeInteger(n int) []byte {
 	i := strconv.Itoa(n)
 	return fmt.Appendf(nil, ":%v\r\n", i)
+}
+
+func EncodeNested(list []store.StreamEntry) []byte {
+	var b strings.Builder
+	fmt.Fprintf(&b, "*%d\r\n", len(list))
+	for _, entry := range list {
+		fmt.Fprintf(&b, "*2\r\n")
+		fmt.Fprintf(&b, "$%d\r\n%s\r\n", len(entry.ID), entry.ID)
+		fmt.Fprintf(&b, "*%d\r\n", len(entry.Fields))
+		for _, f := range entry.Fields {
+			fmt.Fprintf(&b, "$%d\r\n%s\r\n", len(f), f)
+		}
+	}
+	return []byte(b.String())
 }
 
 func EncodeArray(values []string) []byte {
