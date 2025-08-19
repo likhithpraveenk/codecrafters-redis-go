@@ -74,24 +74,22 @@ func handleXRead(cmd []string, conn net.Conn) error {
 	keys := keysIds[:keysLen]
 	ids := keysIds[keysLen:]
 
-	result, err := store.XRead(keys, ids)
-	if err != nil {
-		return writeToConn(conn, Encode(ErrorString(err.Error())))
-	}
-
-	if len(result) > 0 || !hasBlock {
+	if !hasBlock {
+		result, err := store.XRead(keys, ids)
+		if err != nil {
+			return writeToConn(conn, Encode(ErrorString(err.Error())))
+		}
 		return writeToConn(conn, Encode(result))
-	}
+	} else {
+		timeout := time.Duration(blockMs) * time.Millisecond
+		if blockMs == 0 {
+			timeout = 0
+		}
 
-	timeout := time.Duration(blockMs) * time.Millisecond
-	if blockMs == 0 {
-		timeout = 0
+		blockResult, blockErr := store.XReadBlock(keys, ids, timeout)
+		if blockErr != nil {
+			return writeToConn(conn, Encode(ErrorString(blockErr.Error())))
+		}
+		return writeToConn(conn, Encode(blockResult))
 	}
-
-	blockResult, blockErr := store.XReadBlock(keys, ids, timeout)
-	if blockErr != nil {
-		return writeToConn(conn, Encode(ErrorString(blockErr.Error())))
-	}
-
-	return writeToConn(conn, Encode(blockResult))
 }

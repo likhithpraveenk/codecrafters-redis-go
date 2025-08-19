@@ -198,7 +198,30 @@ func XRead(keys, ids []string) ([][]any, error) {
 	return result, nil
 }
 
-func XReadBlock(keys, ids []string, timeout time.Duration) ([][]any, error) {
+func normalizeIDs(keys, ids []string) []string {
+	norm := make([]string, len(ids))
+	for i, key := range keys {
+		if ids[i] == "$" {
+			item, exists := store[key]
+			if exists && item.typ == TypeStream {
+				entries := item.value.([]StreamEntry)
+				if len(entries) > 0 {
+					norm[i] = entries[len(entries)-1].ID
+					fmt.Println("WE ARE HEREERERER")
+					continue
+				}
+			}
+			norm[i] = "0-0"
+
+			fmt.Println("WE ARE HEREERERER")
+		} else {
+			norm[i] = ids[i]
+		}
+	}
+	return norm
+}
+
+func XReadBlock(keys, givenIds []string, timeout time.Duration) ([][]any, error) {
 	chans := make([]chan struct{}, len(keys))
 	addToStreamWaiters(keys, chans)
 	defer cleanupStreamWaiters(keys, chans)
@@ -207,6 +230,8 @@ func XReadBlock(keys, ids []string, timeout time.Duration) ([][]any, error) {
 	if timeout > 0 {
 		timer = time.After(timeout)
 	}
+
+	ids := normalizeIDs(keys, givenIds)
 
 	for {
 		result, err := XRead(keys, ids)
