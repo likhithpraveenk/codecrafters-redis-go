@@ -63,27 +63,31 @@ func CentralHandler(conn net.Conn) {
 		case "EXEC":
 			if !txn.InMulti {
 				conn.Write(Encode(SimpleError("ERR EXEC without MULTI")))
-				return
-			}
-			results := make([]any, 0, len(txn.QueuedCmds))
-			for _, q := range txn.QueuedCmds {
-				if handler, ok := GetHandler(strings.ToUpper(q[0])); ok {
-					result, err := handler(q)
-					if err != nil {
-						results = append(results, SimpleError(err.Error()))
+			} else {
+				results := make([]any, 0, len(txn.QueuedCmds))
+				for _, q := range txn.QueuedCmds {
+					if handler, ok := GetHandler(strings.ToUpper(q[0])); ok {
+						result, err := handler(q)
+						if err != nil {
+							results = append(results, SimpleError(err.Error()))
+						} else {
+							results = append(results, result)
+						}
 					} else {
-						results = append(results, result)
+						results = append(results, SimpleError("ERR unknown command"))
 					}
-				} else {
-					results = append(results, SimpleError("ERR unknown command"))
 				}
+				store.ClearTxnState(conn)
+				conn.Write(Encode(results))
 			}
-			store.ClearTxnState(conn)
-			conn.Write(Encode(results))
 
 		case "DISCARD":
-			store.ClearTxnState(conn)
-			conn.Write(Encode(SimpleString("OK")))
+			if !txn.InMulti {
+				conn.Write(Encode(SimpleError("ERR DISCARD without MULTI")))
+			} else {
+				store.ClearTxnState(conn)
+				conn.Write(Encode(SimpleString("OK")))
+			}
 
 		default:
 			if handler, ok := GetHandler(cmdName); ok {
