@@ -1,7 +1,9 @@
 package store
 
 import (
+	"fmt"
 	"net"
+	"strings"
 	"sync"
 )
 
@@ -53,4 +55,22 @@ func GetType(key string) string {
 	default:
 		return "none"
 	}
+}
+
+func Info() string {
+	var b strings.Builder
+	b.WriteString("# Replication\r\n")
+	if ReplicationRole == "master" {
+		b.WriteString(fmt.Sprintf("role:%s\r\n", ReplicationRole))
+		b.WriteString(fmt.Sprintf("connected_slaves:%d\r\n", ConnectedSlaves))
+		b.WriteString(fmt.Sprintf("master_replid:%s\r\n", MasterReplID))
+		b.WriteString(fmt.Sprintf("master_repl_offset:%d\r\n", MasterReplOffset))
+	} else {
+		b.WriteString(fmt.Sprintf("role:%s\r\n", ReplicationRole))
+		b.WriteString(fmt.Sprintf("master_host:%s\r\n", MasterHost))
+		b.WriteString(fmt.Sprintf("master_port:%d\r\n", MasterPort))
+		b.WriteString(fmt.Sprintf("master_link_status:%s\r\n", MasterLinkStatus))
+		b.WriteString(fmt.Sprintf("master_last_io_seconds_ago:%d\r\n", 0))
+	}
+	return b.String()
 }

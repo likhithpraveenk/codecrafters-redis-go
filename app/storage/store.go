@@ -26,3 +26,13 @@ var (
 	store = make(map[string]Item)
 	mu    sync.RWMutex
 )
+
+var (
+	ReplicationRole  = "master" // or "slave"
+	MasterHost       = ""
+	MasterPort       = 0
+	MasterLinkStatus = "down"
+	ConnectedSlaves  = 0
+	MasterReplID     = "0000000000000000000000000000000000000000" // dummy
+	MasterReplOffset = 0
+)

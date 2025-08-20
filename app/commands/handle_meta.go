@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"strings"
 
 	store "github.com/codecrafters-io/redis-starter-go/app/storage"
 )
@@ -12,4 +13,20 @@ func handleType(cmd []string) (any, error) {
 	}
 	typ := store.GetType(cmd[1])
 	return SimpleString(typ), nil
+}
+
+func handleInfo(cmd []string) (any, error) {
+	section := ""
+	if len(cmd) > 1 {
+		section = strings.ToLower(cmd[1])
+	}
+	var out string
+	switch section {
+	case "", "replication":
+		out = store.Info()
+	default:
+		out = "# " + section + "\r\n"
+	}
+
+	return out, nil
 }
