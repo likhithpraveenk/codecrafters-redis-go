@@ -58,19 +58,18 @@ func GetType(key string) string {
 }
 
 func Info() string {
-	var b strings.Builder
-	b.WriteString("# Replication\r\n")
-	if ReplicationRole == "master" {
-		b.WriteString(fmt.Sprintf("role:%s\r\n", ReplicationRole))
-		b.WriteString(fmt.Sprintf("connected_slaves:%d\r\n", ConnectedSlaves))
-		b.WriteString(fmt.Sprintf("master_replid:%s\r\n", MasterReplID))
-		b.WriteString(fmt.Sprintf("master_repl_offset:%d\r\n", MasterReplOffset))
+	var sb strings.Builder
+	sb.WriteString("# Replication\r\n")
+	if ReplicaRole == RoleMaster {
+		sb.WriteString("role:master\r\n")
+		sb.WriteString("connected_slaves:0\r\n")
+		sb.WriteString("master_replid:123456789abcdef\r\n")
+		sb.WriteString("master_repl_offset:0\r\n")
 	} else {
-		b.WriteString(fmt.Sprintf("role:%s\r\n", ReplicationRole))
-		b.WriteString(fmt.Sprintf("master_host:%s\r\n", MasterHost))
-		b.WriteString(fmt.Sprintf("master_port:%d\r\n", MasterPort))
-		b.WriteString(fmt.Sprintf("master_link_status:%s\r\n", MasterLinkStatus))
-		b.WriteString(fmt.Sprintf("master_last_io_seconds_ago:%d\r\n", 0))
+		sb.WriteString("role:slave\r\n")
+		sb.WriteString(fmt.Sprintf("master_host:%s\r\n", MasterHost))
+		sb.WriteString(fmt.Sprintf("master_port:%d\r\n", MasterPort))
+		sb.WriteString("master_link_status:up\r\n")
 	}
-	return b.String()
+	return sb.String()
 }

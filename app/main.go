@@ -5,13 +5,31 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/commands"
+	store "github.com/codecrafters-io/redis-starter-go/app/storage"
 )
 
 func main() {
 	port := flag.Int("port", 6379, "Port to listen on")
+	replica := flag.String("replicaof", "", "Replication of master (host port)")
 	flag.Parse()
+	if *replica != "" {
+		parts := strings.Split(*replica, " ")
+		if len(parts) != 2 {
+			fmt.Println("Invalid --replicaof argument, expected '<host> <port>'")
+		}
+		replicaOfHost := parts[0]
+		replicaOfPort, err := strconv.Atoi(parts[1])
+		if err != nil {
+			fmt.Printf("Invalid replica port: %v\n", err)
+		}
+		store.ReplicaRole = store.RoleSlave
+		store.MasterHost = replicaOfHost
+		store.MasterPort = replicaOfPort
+	}
 
 	addr := fmt.Sprintf(":%d", *port)
 	commands.Init()

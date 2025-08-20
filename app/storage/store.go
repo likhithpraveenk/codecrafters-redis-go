@@ -27,12 +27,19 @@ var (
 	mu    sync.RWMutex
 )
 
+type ReplicationRole string
+
+const (
+	RoleMaster ReplicationRole = "master"
+	RoleSlave  ReplicationRole = "slave"
+)
+
 var (
-	ReplicationRole  = "master" // or "slave"
-	MasterHost       = ""
-	MasterPort       = 0
+	ReplicaRole      = RoleMaster
+	MasterHost       string
+	MasterPort       int
 	MasterLinkStatus = "down"
 	ConnectedSlaves  = 0
-	MasterReplID     = "0000000000000000000000000000000000000000" // dummy
-	MasterReplOffset = 0
+	MasterReplID     = "0000000000000000000000000000000000000000"
+	MasterReplOffset = int64(0)
 )
