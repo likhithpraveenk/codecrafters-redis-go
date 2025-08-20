@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -9,18 +10,24 @@ import (
 )
 
 func main() {
+	port := flag.Int("port", 6379, "Port to listen on")
+	flag.Parse()
+
+	addr := fmt.Sprintf(":%d", *port)
 	commands.Init()
-	l, err := net.Listen("tcp", ":6379")
+	l, err := net.Listen("tcp", addr)
 	if err != nil {
-		fmt.Errorf("Failed to bind: %s", err)
+		fmt.Printf("Failed to listen on %s: %v\n", addr, err)
 		os.Exit(1)
 	}
 	defer l.Close()
-	fmt.Println("Listening on :6379")
+
+	fmt.Printf("[redis-cli] Listening on %s\n", addr)
+
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			fmt.Errorf("Listener error: %v\n", err)
+			fmt.Printf("Failed to accept connection: %v\n", err)
 			continue
 		}
 		go commands.CentralHandler(conn)
