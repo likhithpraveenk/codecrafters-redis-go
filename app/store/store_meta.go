@@ -40,6 +40,7 @@ var (
 	ConnectedSlaves  = 0
 	MasterReplID     = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"
 	MasterReplOffset = int64(0)
+	ReplicaOffset    = int64(0)
 
 	replicas  = make(map[int]*ReplicaInfo)
 	replicaMu sync.Mutex

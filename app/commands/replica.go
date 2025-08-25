@@ -16,28 +16,25 @@ func HandleMasterConnection(conn net.Conn, port int) {
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
 
-	// 1. Handshake
-	conn.Write(common.Encode([]string{"PING"}))
-	if resp, err := reader.ReadString('\n'); err == nil {
-		fmt.Printf("[replica] master replied: %s", resp)
+	// --- Handshake ---
+	handshakeSteps := [][]string{
+		{"PING"},
+		{"REPLCONF", "listening-port", fmt.Sprintf("%d", port)},
+		{"REPLCONF", "capa", "psync2"},
+		{"PSYNC", "?", "-1"},
 	}
 
-	conn.Write(common.Encode([]string{"REPLCONF", "listening-port", fmt.Sprintf("%d", port)}))
-	if resp, err := reader.ReadString('\n'); err == nil {
-		fmt.Printf("[replica] master replied: %s", resp)
+	for _, step := range handshakeSteps {
+		conn.Write(common.Encode(step))
+		if resp, err := reader.ReadString('\n'); err == nil {
+			fmt.Printf("[replica] master replied: %s", resp)
+		} else {
+			fmt.Println("[replica] handshake failed:", err)
+			return
+		}
 	}
 
-	conn.Write(common.Encode([]string{"REPLCONF", "capa", "psync2"}))
-	if resp, err := reader.ReadString('\n'); err == nil {
-		fmt.Printf("[replica] master replied: %s", resp)
-	}
-
-	conn.Write(common.Encode([]string{"PSYNC", "?", "-1"}))
-	if resp, err := reader.ReadString('\n'); err == nil {
-		fmt.Printf("[replica] PSYNC reply: %s", resp)
-	}
-
-	// 2. Master sends RDB bulk string
+	// --- Read RDB bulk string ---
 	header, err := reader.ReadString('\n')
 	if err != nil {
 		fmt.Println("[replica] failed reading RDB header:", err)
@@ -65,9 +62,9 @@ func HandleMasterConnection(conn net.Conn, port int) {
 	store.MasterLinkStatus = "up"
 	fmt.Println("[replica] handshake completed, link up")
 
-	// 3. Start replication loop
+	// --- Replication loop ---
 	for {
-		cmd, err := common.ParseCommand(reader)
+		cmd, consumed, err := common.ParseCommand(reader)
 		if err != nil {
 			fmt.Println("[replica] master disconnected or parse error:", err)
 			store.MasterLinkStatus = "down"
@@ -79,12 +76,11 @@ func HandleMasterConnection(conn net.Conn, port int) {
 
 		fmt.Printf("[replica] received: %+v\n", cmd)
 
-		if handler, ok := GetHandler(strings.ToUpper(cmd[0])); ok {
-			_, err := handler(cmd)
-			if err != nil {
-				fmt.Printf("[replica] error applying command: %v\n", err)
-			}
+		if err := HandleReplicaCommand(cmd, conn); err != nil {
+			fmt.Printf("[replica] error applying command: %v\n", err)
 		}
+
+		store.ReplicaOffset += consumed
 	}
 }
 
@@ -98,4 +94,33 @@ func PropagateToReplicas(cmd []string) {
 			store.DeleteReplicaConn(id)
 		}
 	}
+}
+
+func HandleReplicaCommand(cmd []string, conn net.Conn) error {
+	cmdName := strings.ToUpper(cmd[0])
+
+	switch cmdName {
+	case "REPLCONF":
+		if len(cmd) >= 2 && strings.ToUpper(cmd[1]) == "GETACK" {
+			ack := []string{"REPLCONF", "ACK", fmt.Sprintf("%d", store.ReplicaOffset)}
+			_, err := conn.Write(common.Encode(ack))
+			if err != nil {
+				return err
+			}
+			fmt.Printf("[replica] sent REPLCONF ACK %d\n", store.ReplicaOffset)
+		}
+		return nil
+
+	case "PING":
+		return nil
+
+	default:
+		if handler, ok := GetHandler(cmdName); ok {
+			_, err := handler(cmd)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

@@ -8,48 +8,52 @@ import (
 	"strings"
 )
 
-func ParseCommand(reader *bufio.Reader) ([]string, error) {
+func ParseCommand(reader *bufio.Reader) ([]string, int64, error) {
 	arrayHeaderLine, err := reader.ReadString('\n')
 	if err != nil {
 		if err == io.EOF {
-			return nil, nil
+			return nil, 0, nil
 		}
-		return nil, err
+		return nil, 0, err
 	}
 
-	arrayHeaderLine = strings.TrimSpace(arrayHeaderLine)
 	if len(arrayHeaderLine) == 0 || arrayHeaderLine[0] != '*' {
-		return nil, fmt.Errorf("expected array start '*'")
+		return nil, 0, fmt.Errorf("expected array start '*'")
 	}
 
-	elementCount, err := strconv.Atoi(arrayHeaderLine[1:])
+	elementCount, err := strconv.Atoi(strings.TrimSpace(arrayHeaderLine[1:]))
 	if err != nil {
-		return nil, fmt.Errorf("invalid array length")
+		return nil, 0, fmt.Errorf("invalid array length")
 	}
+	totalSize := int64(len(arrayHeaderLine))
 
 	commandParts := make([]string, 0, elementCount)
 	for range elementCount {
 		stringHeaderLine, err := reader.ReadString('\n')
 		if err != nil {
-			return nil, err
+			return nil, totalSize, err
 		}
-		stringHeaderLine = strings.TrimSpace(stringHeaderLine)
-		if len(stringHeaderLine) == 0 || stringHeaderLine[0] != '$' {
-			return nil, fmt.Errorf("expected bulk string start '$'")
-		}
-		stringLength, err := strconv.Atoi(stringHeaderLine[1:])
-		if err != nil {
-			return nil, fmt.Errorf("invalid bulk string length")
-		}
-		stringData := make([]byte, stringLength+2)
-		_, err = reader.Read(stringData)
-		if err != nil {
-			return nil, err
-		}
-		stringValue := string(stringData[:stringLength])
+		totalSize += int64(len(stringHeaderLine))
 
+		if len(stringHeaderLine) == 0 || stringHeaderLine[0] != '$' {
+			return nil, totalSize, fmt.Errorf("expected bulk string start '$'")
+		}
+
+		stringLength, err := strconv.Atoi(strings.TrimSpace(stringHeaderLine[1:]))
+		if err != nil {
+			return nil, totalSize, fmt.Errorf("invalid bulk string length")
+		}
+
+		stringData := make([]byte, stringLength+2)
+		if _, err := io.ReadFull(reader, stringData); err != nil {
+			return nil, totalSize, err
+		}
+
+		totalSize += int64(len(stringData))
+		stringValue := string(stringData[:stringLength])
 		commandParts = append(commandParts, stringValue)
 	}
+
 	fmt.Printf("[redis-cli] received %v\n", commandParts)
-	return commandParts, nil
+	return commandParts, totalSize, nil
 }

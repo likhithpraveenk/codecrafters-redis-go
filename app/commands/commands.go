@@ -45,7 +45,7 @@ func CentralHandler(conn net.Conn) {
 	for {
 		txn := store.GetTxnState(conn)
 		r := bufio.NewReader(conn)
-		cmd, err := common.ParseCommand(r)
+		cmd, _, err := common.ParseCommand(r)
 		if err != nil {
 			fmt.Printf("Parse error: %v\n", err)
 			return
