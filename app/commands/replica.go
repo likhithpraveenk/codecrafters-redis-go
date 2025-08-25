@@ -10,7 +10,7 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/app/store"
 )
 
-func HandleMasterConnection(conn net.Conn) {
+func HandleMasterConnection(conn net.Conn, port int) {
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
 
@@ -20,7 +20,7 @@ func HandleMasterConnection(conn net.Conn) {
 		fmt.Printf("[replica] master replied: %s", resp)
 	}
 
-	conn.Write(common.Encode([]string{"REPLCONF", "listening-port", "0"}))
+	conn.Write(common.Encode([]string{"REPLCONF", "listening-port", fmt.Sprintf("%d", port)}))
 	if resp, err := reader.ReadString('\n'); err == nil {
 		fmt.Printf("[replica] master replied: %s", resp)
 	}

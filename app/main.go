@@ -39,7 +39,7 @@ func main() {
 
 				fmt.Printf("Connected to master %s\n", addr)
 				store.MasterLinkStatus = "up"
-				commands.HandleMasterConnection(conn)
+				commands.HandleMasterConnection(conn, *port)
 				store.MasterLinkStatus = "down"
 				conn.Close()
 				time.Sleep(2 * time.Second)
