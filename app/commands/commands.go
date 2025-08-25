@@ -27,6 +27,7 @@ func Init() {
 	registerCommand("XRANGE", handleXRange)
 	registerCommand("XREAD", handleXRead)
 	registerCommand("INFO", handleInfo)
+	registerCommand("WAIT", handleWait)
 }
 
 var commandHandlers = map[string]func([]string) (any, error){}
@@ -55,7 +56,7 @@ func CentralHandler(conn net.Conn) {
 			return
 		}
 
-		if HandleHandshake(conn, cmd) {
+		if HandleReplica(conn, cmd) {
 			continue
 		}
 
@@ -126,37 +127,14 @@ func ExecuteCommand(conn net.Conn, cmd []string) {
 		conn.Write(common.Encode(result))
 
 		if store.ReplicaRole == store.RoleMaster && isMutating(cmdName) {
-			fmt.Printf("[master] propagating command: %v\n", cmd)
-			PropagateToReplicas(cmd)
+			b := common.Encode(cmd)
+			fmt.Printf("[master] propagating command: %v\n", b)
+			PropagateToReplicas(b)
+			store.MasterReplOffset += int64(len(b))
 		}
-
 	} else {
 		conn.Write(common.Encode(common.SimpleError("ERR unknown command '" + cmd[0] + "'")))
 	}
-}
-
-func HandleHandshake(conn net.Conn, cmd []string) bool {
-	switch strings.ToUpper(cmd[0]) {
-	case "PING":
-		conn.Write(common.Encode(common.SimpleString("PONG")))
-		return true
-	case "REPLCONF":
-		if len(cmd) >= 3 && strings.ToLower(cmd[1]) == "listening-port" {
-			replicaPort := cmd[2]
-			host, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
-			r := store.AddReplica(host, replicaPort)
-			store.RegisterReplicaConn(r.ID, conn)
-
-		}
-		conn.Write(common.Encode(common.SimpleString("OK")))
-		return true
-	case "PSYNC":
-		result := fmt.Sprintf("FULLRESYNC %s %d", store.MasterReplID, store.MasterReplOffset)
-		conn.Write(common.Encode(common.SimpleString(result)))
-		conn.Write(common.Encode(common.RDB(store.EmptyRDB)))
-		return true
-	}
-	return false
 }
 
 func isMutating(cmd string) bool {

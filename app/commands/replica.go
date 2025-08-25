@@ -12,6 +12,35 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/app/store"
 )
 
+func HandleReplica(conn net.Conn, cmd []string) bool {
+	switch strings.ToUpper(cmd[0]) {
+	case "REPLCONF":
+		subCmd := strings.ToUpper(cmd[1])
+		switch subCmd {
+		case "LISTENING-PORT":
+			replicaPort := cmd[2]
+			host, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
+			r := store.AddReplica(host, replicaPort)
+			store.RegisterReplicaConn(r.ID, conn)
+
+		case "ACK":
+			offset, _ := strconv.ParseInt(cmd[2], 10, 64)
+			store.UpdateReplicaAck(conn, offset)
+			fmt.Printf("[master] replica %v acknowledged offset %d\n", conn.RemoteAddr(), offset)
+		case "CAPA":
+		case "GETACK":
+		}
+		conn.Write(common.Encode(common.SimpleString("OK")))
+		return true
+	case "PSYNC":
+		result := fmt.Sprintf("FULLRESYNC %s %d", store.MasterReplID, store.MasterReplOffset)
+		conn.Write(common.Encode(common.SimpleString(result)))
+		conn.Write(common.Encode(common.RDB(store.EmptyRDB)))
+		return true
+	}
+	return false
+}
+
 func HandleMasterConnection(conn net.Conn, port int) {
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
@@ -84,10 +113,10 @@ func HandleMasterConnection(conn net.Conn, port int) {
 	}
 }
 
-func PropagateToReplicas(cmd []string) {
+func PropagateToReplicas(resp []byte) {
 	list := store.ListReplicaConns()
 	for id, c := range list {
-		_, err := c.Write(common.Encode(cmd))
+		_, err := c.Write(resp)
 		if err != nil {
 			fmt.Printf("failed to propagate to replica %d: %v\n", id, err)
 			c.Close()
