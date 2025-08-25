@@ -8,6 +8,7 @@ import (
 
 type SimpleString string
 type SimpleError string
+type RDB []byte
 
 func Encode(value any) []byte {
 	var b strings.Builder
@@ -19,6 +20,12 @@ func encodeValue(b *strings.Builder, value any) {
 	switch v := value.(type) {
 	case nil:
 		b.WriteString("$-1\r\n")
+
+	case RDB:
+		b.WriteString("$")
+		b.WriteString(strconv.Itoa(len(v)))
+		b.WriteString("\r\n")
+		b.Write(v)
 
 	case SimpleString:
 		b.WriteString("+")

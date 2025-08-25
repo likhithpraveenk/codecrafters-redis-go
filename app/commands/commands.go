@@ -150,7 +150,7 @@ func HandleHandshake(conn net.Conn, cmd []string) bool {
 	case "PSYNC":
 		result := fmt.Sprintf("FULLRESYNC %s %d", store.MasterReplID, store.MasterReplOffset)
 		conn.Write(common.Encode(common.SimpleString(result)))
-		conn.Write(common.Encode(""))
+		conn.Write(common.Encode(common.RDB(store.EmptyRDB)))
 		return true
 	}
 	return false
