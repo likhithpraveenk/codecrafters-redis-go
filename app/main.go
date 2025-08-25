@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"strings"
+	"time"
 
 	"github.com/codecrafters-io/redis-starter-go/app/commands"
-	store "github.com/codecrafters-io/redis-starter-go/app/storage"
+	"github.com/codecrafters-io/redis-starter-go/app/store"
 )
 
 func main() {
@@ -21,14 +21,30 @@ func main() {
 		if len(parts) != 2 {
 			fmt.Println("Invalid --replicaof argument, expected '<host> <port>'")
 		}
-		replicaOfHost := parts[0]
-		replicaOfPort, err := strconv.Atoi(parts[1])
-		if err != nil {
-			fmt.Printf("Invalid replica port: %v\n", err)
-		}
+		replicaOfHost, replicaOfPort := parts[0], parts[1]
+
 		store.ReplicaRole = store.RoleSlave
 		store.MasterHost = replicaOfHost
 		store.MasterPort = replicaOfPort
+
+		go func() {
+			for {
+				addr := net.JoinHostPort(replicaOfHost, replicaOfPort)
+				conn, err := net.Dial("tcp", addr)
+				if err != nil {
+					fmt.Printf("Failed to connect to master %s: %v\n", addr, err)
+					time.Sleep(2 * time.Second)
+					continue
+				}
+
+				fmt.Printf("Connected to master %s\n", addr)
+				store.MasterLinkStatus = "up"
+				commands.HandleMasterConnection(conn)
+				store.MasterLinkStatus = "down"
+				conn.Close()
+				time.Sleep(2 * time.Second)
+			}
+		}()
 	}
 
 	addr := fmt.Sprintf(":%d", *port)

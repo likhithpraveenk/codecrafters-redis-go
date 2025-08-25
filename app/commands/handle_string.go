@@ -5,11 +5,12 @@ import (
 	"strconv"
 	"strings"
 
-	store "github.com/codecrafters-io/redis-starter-go/app/storage"
+	"github.com/codecrafters-io/redis-starter-go/app/common"
+	"github.com/codecrafters-io/redis-starter-go/app/store"
 )
 
 func handlePing(cmd []string) (any, error) {
-	return SimpleString("PONG"), nil
+	return common.SimpleString("PONG"), nil
 }
 
 func handleEcho(cmd []string) (any, error) {
@@ -35,7 +36,7 @@ func handleSet(cmd []string) (any, error) {
 		expiry = milliSec
 	}
 	store.SetValue(key, value, expiry)
-	return SimpleString("OK"), nil
+	return common.SimpleString("OK"), nil
 }
 
 func handleGet(cmd []string) (any, error) {

@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	store "github.com/codecrafters-io/redis-starter-go/app/storage"
+	"github.com/codecrafters-io/redis-starter-go/app/common"
+	"github.com/codecrafters-io/redis-starter-go/app/store"
 )
 
 func handleType(cmd []string) (any, error) {
@@ -12,7 +13,7 @@ func handleType(cmd []string) (any, error) {
 		return nil, fmt.Errorf("wrong arguments for 'LLEN'")
 	}
 	typ := store.GetType(cmd[1])
-	return SimpleString(typ), nil
+	return common.SimpleString(typ), nil
 }
 
 func handleInfo(cmd []string) (any, error) {

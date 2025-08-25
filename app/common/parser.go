@@ -1,4 +1,4 @@
-package commands
+package common
 
 import (
 	"bufio"
@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func parseCommand(conn net.Conn) ([]string, error) {
+func ParseCommand(conn net.Conn) ([]string, error) {
 	reader := bufio.NewReader(conn)
 
 	arrayHeaderLine, err := reader.ReadString('\n')
@@ -53,6 +53,6 @@ func parseCommand(conn net.Conn) ([]string, error) {
 
 		commandParts = append(commandParts, stringValue)
 	}
-	fmt.Printf("Received: %v\n", commandParts)
+	fmt.Printf("[redis-cli] received %v\n", commandParts)
 	return commandParts, nil
 }

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	store "github.com/codecrafters-io/redis-starter-go/app/storage"
+	"github.com/codecrafters-io/redis-starter-go/app/store"
 )
 
 func handleXAdd(cmd []string) (any, error) {

@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	store "github.com/codecrafters-io/redis-starter-go/app/storage"
+	"github.com/codecrafters-io/redis-starter-go/app/store"
 )
 
 func handlePush(cmd []string, toLeft bool) (any, error) {
