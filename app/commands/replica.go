@@ -3,7 +3,9 @@ package commands
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
+	"strconv"
 	"strings"
 
 	"github.com/codecrafters-io/redis-starter-go/app/common"
@@ -44,7 +46,20 @@ func HandleMasterConnection(conn net.Conn, port int) {
 	fmt.Printf("[replica] received RDB header: %s", header)
 
 	if strings.HasPrefix(header, "$") {
-		fmt.Println("skipping rdb handling for now")
+		lengthStr := strings.TrimSpace(header[1:])
+		length, err := strconv.Atoi(lengthStr)
+		if err != nil {
+			fmt.Println("[replica] invalid RDB length:", err)
+			return
+		}
+
+		buf := make([]byte, length)
+		_, err = io.ReadFull(reader, buf)
+		if err != nil {
+			fmt.Println("[replica] failed reading RDB payload:", err)
+			return
+		}
+		fmt.Printf("[replica] consumed RDB payload of %d bytes\n", length)
 	}
 
 	store.MasterLinkStatus = "up"
@@ -52,7 +67,7 @@ func HandleMasterConnection(conn net.Conn, port int) {
 
 	// 3. Start replication loop
 	for {
-		cmd, err := common.ParseCommand(conn)
+		cmd, err := common.ParseCommand(reader)
 		if err != nil {
 			fmt.Println("[replica] master disconnected or parse error:", err)
 			store.MasterLinkStatus = "down"
@@ -62,7 +77,7 @@ func HandleMasterConnection(conn net.Conn, port int) {
 			continue
 		}
 
-		fmt.Printf("[replica] applying command from master: %+v\n", cmd)
+		fmt.Printf("[replica] received: %+v\n", cmd)
 
 		if handler, ok := GetHandler(strings.ToUpper(cmd[0])); ok {
 			_, err := handler(cmd)

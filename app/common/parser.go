@@ -4,14 +4,11 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"net"
 	"strconv"
 	"strings"
 )
 
-func ParseCommand(conn net.Conn) ([]string, error) {
-	reader := bufio.NewReader(conn)
-
+func ParseCommand(reader *bufio.Reader) ([]string, error) {
 	arrayHeaderLine, err := reader.ReadString('\n')
 	if err != nil {
 		if err == io.EOF {

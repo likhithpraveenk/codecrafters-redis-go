@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bufio"
 	"fmt"
 	"net"
 	"strings"
@@ -43,7 +44,8 @@ func CentralHandler(conn net.Conn) {
 	defer conn.Close()
 	for {
 		txn := store.GetTxnState(conn)
-		cmd, err := common.ParseCommand(conn)
+		r := bufio.NewReader(conn)
+		cmd, err := common.ParseCommand(r)
 		if err != nil {
 			fmt.Printf("Parse error: %v\n", err)
 			return
@@ -124,6 +126,7 @@ func ExecuteCommand(conn net.Conn, cmd []string) {
 		conn.Write(common.Encode(result))
 
 		if store.ReplicaRole == store.RoleMaster && isMutating(cmdName) {
+			fmt.Printf("[master] propagating command: %v\n", cmd)
 			PropagateToReplicas(cmd)
 		}
 
