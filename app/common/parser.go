@@ -54,6 +54,5 @@ func ParseCommand(reader *bufio.Reader) ([]string, int64, error) {
 		commandParts = append(commandParts, stringValue)
 	}
 
-	fmt.Printf("[redis-cli] received %v\n", commandParts)
 	return commandParts, totalSize, nil
 }

@@ -12,34 +12,6 @@ import (
 	"github.com/codecrafters-io/redis-starter-go/app/store"
 )
 
-func HandleReplica(conn net.Conn, cmd []string) bool {
-	switch strings.ToUpper(cmd[0]) {
-	case "REPLCONF":
-		subCmd := strings.ToUpper(cmd[1])
-		switch subCmd {
-		case "LISTENING-PORT":
-			port := cmd[2]
-			host, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
-			store.AddReplica(conn, host, port)
-
-		case "ACK":
-			offset, _ := strconv.ParseInt(cmd[2], 10, 64)
-			store.UpdateReplicaAck(conn, offset)
-			fmt.Printf("[master] replica %v acknowledged offset %d\n", conn.RemoteAddr(), offset)
-		case "CAPA":
-		case "GETACK":
-		}
-		conn.Write(common.Encode(common.SimpleString("OK")))
-		return true
-	case "PSYNC":
-		result := fmt.Sprintf("FULLRESYNC %s %d", store.MasterReplID, store.MasterReplOffset)
-		conn.Write(common.Encode(common.SimpleString(result)))
-		conn.Write(common.Encode(common.RDB(store.EmptyRDB)))
-		return true
-	}
-	return false
-}
-
 func HandleMasterConnection(conn net.Conn, port int) {
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
@@ -54,9 +26,7 @@ func HandleMasterConnection(conn net.Conn, port int) {
 
 	for _, step := range handshakeSteps {
 		conn.Write(common.Encode(step))
-		if resp, err := reader.ReadString('\n'); err == nil {
-			fmt.Printf("[replica] master replied: %s", resp)
-		} else {
+		if _, err := reader.ReadString('\n'); err != nil {
 			fmt.Println("[replica] handshake failed:", err)
 			return
 		}
@@ -68,7 +38,6 @@ func HandleMasterConnection(conn net.Conn, port int) {
 		fmt.Println("[replica] failed reading RDB header:", err)
 		return
 	}
-	fmt.Printf("[replica] received RDB header: %s", header)
 
 	if strings.HasPrefix(header, "$") {
 		lengthStr := strings.TrimSpace(header[1:])
@@ -84,7 +53,6 @@ func HandleMasterConnection(conn net.Conn, port int) {
 			fmt.Println("[replica] failed reading RDB payload:", err)
 			return
 		}
-		fmt.Printf("[replica] consumed RDB payload of %d bytes\n", length)
 	}
 
 	store.MasterLinkStatus = "up"
@@ -104,7 +72,7 @@ func HandleMasterConnection(conn net.Conn, port int) {
 
 		fmt.Printf("[replica] received: %+v\n", cmd)
 
-		if err := HandleReplicaCommand(cmd, conn); err != nil {
+		if err := handleReplicaCommand(cmd, conn); err != nil {
 			fmt.Printf("[replica] error applying command: %v\n", err)
 		}
 
@@ -112,19 +80,7 @@ func HandleMasterConnection(conn net.Conn, port int) {
 	}
 }
 
-func PropagateToReplicas(resp []byte) {
-	list := store.ListReplica()
-	for _, r := range list {
-		_, err := r.Conn.Write(resp)
-		if err != nil {
-			fmt.Printf("[master] failed to propagate to replica %v\n", err)
-			r.Conn.Close()
-			store.RemoveReplica(r.Conn)
-		}
-	}
-}
-
-func HandleReplicaCommand(cmd []string, conn net.Conn) error {
+func handleReplicaCommand(cmd []string, conn net.Conn) error {
 	cmdName := strings.ToUpper(cmd[0])
 
 	switch cmdName {
@@ -143,7 +99,7 @@ func HandleReplicaCommand(cmd []string, conn net.Conn) error {
 		return nil
 
 	default:
-		if handler, ok := GetHandler(cmdName); ok {
+		if handler, ok := getHandler(cmdName); ok {
 			_, err := handler(cmd)
 			if err != nil {
 				return err

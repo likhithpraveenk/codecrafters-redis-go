@@ -10,8 +10,6 @@ type Replica struct {
 	Conn  net.Conn
 	Ack   int64
 	AckCh chan struct{}
-	Addr  string
-	Port  string
 }
 
 var (
@@ -66,7 +64,7 @@ func CountReplicasAtLeast(offset int64) int64 {
 	return int64(count)
 }
 
-func AddReplica(conn net.Conn, addr, port string) {
+func AddReplica(conn net.Conn) {
 	replicaMu.Lock()
 	defer replicaMu.Unlock()
 	id := nextID
@@ -77,8 +75,6 @@ func AddReplica(conn net.Conn, addr, port string) {
 		Conn:  conn,
 		Ack:   0,
 		AckCh: make(chan struct{}, 1),
-		Addr:  addr,
-		Port:  port,
 	}
 	replicas[id] = r
 	ConnectedSlaves = len(replicas)

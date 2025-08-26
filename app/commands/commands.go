@@ -36,7 +36,7 @@ func registerCommand(name string, handler func([]string) (any, error)) {
 	commandHandlers[strings.ToUpper(name)] = handler
 }
 
-func GetHandler(cmd string) (func([]string) (any, error), bool) {
+func getHandler(cmd string) (func([]string) (any, error), bool) {
 	h, ok := commandHandlers[cmd]
 	return h, ok
 }
@@ -47,6 +47,7 @@ func CentralHandler(conn net.Conn) {
 		txn := store.GetTxnState(conn)
 		r := bufio.NewReader(conn)
 		cmd, _, err := common.ParseCommand(r)
+		fmt.Printf("[redis-cli] received %v\n", cmd)
 		if err != nil {
 			fmt.Printf("Parse error: %v\n", err)
 			return
@@ -56,13 +57,13 @@ func CentralHandler(conn net.Conn) {
 			return
 		}
 
-		if HandleReplica(conn, cmd) {
+		if handleReplica(conn, cmd) {
 			continue
 		}
 
 		switch strings.ToUpper(cmd[0]) {
 		case "MULTI", "EXEC", "DISCARD":
-			HandleTransaction(conn, cmd, txn)
+			handleTransaction(conn, cmd, txn)
 			continue
 		}
 
@@ -70,13 +71,13 @@ func CentralHandler(conn net.Conn) {
 			txn.QueuedCmds = append(txn.QueuedCmds, cmd)
 			conn.Write(common.Encode(common.SimpleString("QUEUED")))
 		} else {
-			ExecuteCommand(conn, cmd)
+			executeCommand(conn, cmd)
 		}
 
 	}
 }
 
-func HandleTransaction(conn net.Conn, cmd []string, txn *store.TxnState) {
+func handleTransaction(conn net.Conn, cmd []string, txn *store.TxnState) {
 	cmdName := strings.ToUpper(cmd[0])
 	switch cmdName {
 	case "MULTI":
@@ -90,7 +91,7 @@ func HandleTransaction(conn net.Conn, cmd []string, txn *store.TxnState) {
 		} else {
 			results := make([]any, 0, len(txn.QueuedCmds))
 			for _, q := range txn.QueuedCmds {
-				if handler, ok := GetHandler(strings.ToUpper(q[0])); ok {
+				if handler, ok := getHandler(strings.ToUpper(q[0])); ok {
 					result, err := handler(q)
 					if err != nil {
 						results = append(results, common.SimpleError(err.Error()))
@@ -115,9 +116,9 @@ func HandleTransaction(conn net.Conn, cmd []string, txn *store.TxnState) {
 	}
 }
 
-func ExecuteCommand(conn net.Conn, cmd []string) {
+func executeCommand(conn net.Conn, cmd []string) {
 	cmdName := strings.ToUpper(cmd[0])
-	if handler, ok := GetHandler(cmdName); ok {
+	if handler, ok := getHandler(cmdName); ok {
 		result, err := handler(cmd)
 		if err != nil {
 			conn.Write(common.Encode(common.SimpleError(err.Error())))
@@ -128,7 +129,7 @@ func ExecuteCommand(conn net.Conn, cmd []string) {
 
 		if store.ReplicaRole == store.RoleMaster && isMutating(cmdName) {
 			b := common.Encode(cmd)
-			PropagateToReplicas(b)
+			propagateToReplicas(b)
 			store.MasterReplOffset += int64(len(b))
 		}
 	} else {

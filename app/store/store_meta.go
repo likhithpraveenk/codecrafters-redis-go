@@ -81,9 +81,6 @@ func Info() string {
 	if ReplicaRole == RoleMaster {
 		sb.WriteString("role:master\r\n")
 		sb.WriteString(fmt.Sprintf("connected_slaves:%d\r\n", ConnectedSlaves))
-		for _, r := range ListReplica() {
-			sb.WriteString(fmt.Sprintf("slave%d:ip=%s,port=%s,lag=0\r\n", r.ID, r.Addr, r.Port))
-		}
 		sb.WriteString("master_replid:123456789abcdef\r\n")
 		sb.WriteString("master_repl_offset:0\r\n")
 	} else {
