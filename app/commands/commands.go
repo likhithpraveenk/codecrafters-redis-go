@@ -31,6 +31,7 @@ func Init() {
 	registerCommand("CONFIG", handleConfig)
 	registerCommand("KEYS", handleKeys)
 	registerCommand("SAVE", handleSave)
+	registerCommand("PUBLISH", handlePublish)
 }
 
 var commandHandlers = map[string]func([]string) (any, error){}
@@ -68,15 +69,22 @@ func CentralHandler(conn net.Conn) {
 		case "MULTI", "EXEC", "DISCARD":
 			handleTransaction(conn, cmd, txn)
 			continue
+		case "SUBSCRIBE":
+			txn.Subscribed = true
 		}
 
 		if txn.InMulti {
 			txn.QueuedCmds = append(txn.QueuedCmds, cmd)
 			conn.Write(common.Encode(common.SimpleString("QUEUED")))
-		} else {
-			executeCommand(conn, cmd)
+			continue
 		}
 
+		if txn.Subscribed {
+			handleSubscription(conn, cmd, txn)
+			continue
+		}
+
+		executeCommand(conn, cmd)
 	}
 }
 

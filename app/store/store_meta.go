@@ -11,6 +11,7 @@ import (
 type TxnState struct {
 	InMulti    bool
 	QueuedCmds [][]string
+	Subscribed bool
 }
 
 var (
