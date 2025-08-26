@@ -15,13 +15,17 @@ func handleSubscription(conn net.Conn, cmd []string, txn *store.TxnState) {
 	cmdName := strings.ToUpper(cmd[0])
 	switch cmdName {
 	case "SUBSCRIBE":
-		result := store.Subscribe(cmd[1], client)
-		client.Messages <- result
+		for _, ch := range cmd[1:] {
+			result := store.Subscribe(ch, client)
+			client.Messages <- result
+		}
 
 	case "UNSUBSCRIBE":
-		result := store.UnSubscribe(cmd[1], client)
-		client.Messages <- result
-		txn.Subscribed = false
+		for _, ch := range cmd[1:] {
+			result := store.UnSubscribe(ch, client)
+			client.Messages <- result
+			txn.Subscribed = false
+		}
 
 	case "PING":
 		conn.Write(common.Encode([]string{"pong", ""}))

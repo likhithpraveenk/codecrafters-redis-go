@@ -107,11 +107,10 @@ func Publish(channel, message string) int64 {
 
 func UnSubscribe(channel string, client *Client) []any {
 	pubsub.mu.Lock()
-	defer pubsub.mu.Unlock()
-
 	if clients, ok := pubsub.channels[channel]; ok {
 		delete(clients, client)
 	}
+	pubsub.mu.Unlock()
 
 	count := noOfSubscriptions(client)
 
