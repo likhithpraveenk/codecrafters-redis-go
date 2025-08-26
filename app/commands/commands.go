@@ -128,7 +128,6 @@ func ExecuteCommand(conn net.Conn, cmd []string) {
 
 		if store.ReplicaRole == store.RoleMaster && isMutating(cmdName) {
 			b := common.Encode(cmd)
-			fmt.Printf("[master] propagating command: %v\n", b)
 			PropagateToReplicas(b)
 			store.MasterReplOffset += int64(len(b))
 		}

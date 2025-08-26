@@ -18,10 +18,9 @@ func HandleReplica(conn net.Conn, cmd []string) bool {
 		subCmd := strings.ToUpper(cmd[1])
 		switch subCmd {
 		case "LISTENING-PORT":
-			replicaPort := cmd[2]
+			port := cmd[2]
 			host, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
-			r := store.AddReplica(host, replicaPort)
-			store.RegisterReplicaConn(r.ID, conn)
+			store.AddReplica(conn, host, port)
 
 		case "ACK":
 			offset, _ := strconv.ParseInt(cmd[2], 10, 64)
@@ -114,13 +113,13 @@ func HandleMasterConnection(conn net.Conn, port int) {
 }
 
 func PropagateToReplicas(resp []byte) {
-	list := store.ListReplicaConns()
-	for id, c := range list {
-		_, err := c.Write(resp)
+	list := store.ListReplica()
+	for _, r := range list {
+		_, err := r.Conn.Write(resp)
 		if err != nil {
-			fmt.Printf("failed to propagate to replica %d: %v\n", id, err)
-			c.Close()
-			store.DeleteReplicaConn(id)
+			fmt.Printf("[master] failed to propagate to replica %v\n", err)
+			r.Conn.Close()
+			store.RemoveReplica(r.Conn)
 		}
 	}
 }

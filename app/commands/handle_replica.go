@@ -15,20 +15,46 @@ func handleWait(cmd []string) (any, error) {
 	}
 	numReplicas, _ := strconv.ParseInt(cmd[1], 10, 64)
 	timeoutMs, _ := strconv.ParseInt(cmd[2], 10, 64)
+	timeout := time.Duration(timeoutMs) * time.Millisecond
 
 	targetOffset := store.MasterReplOffset
 	PropagateToReplicas(common.Encode([]string{"REPLCONF", "GETACK", "*"}))
 
-	deadline := time.Now().Add(time.Duration(timeoutMs) * time.Millisecond)
-	ticker := time.NewTicker(5 * time.Millisecond)
-	defer ticker.Stop()
+	ackChans := store.ListAckChans()
+	merged := merge(ackChans...)
 
-	for now := range ticker.C {
-		acked := store.CountReplicasAtLeast(targetOffset)
-		if acked >= numReplicas || now.After(deadline) {
-			return acked, nil
-		}
+	var timer <-chan time.Time
+	if timeout > 0 {
+		timer = time.After(timeout)
 	}
 
-	return store.CountReplicasAtLeast(targetOffset), nil
+	for {
+		if acks := store.CountReplicasAtLeast(targetOffset); numReplicas == 0 || acks >= numReplicas {
+			return acks, nil
+		}
+
+		if timeout > 0 {
+			select {
+			case <-merged:
+			case <-timer:
+				return store.CountReplicasAtLeast(targetOffset), nil
+			}
+		} else {
+			<-merged
+		}
+	}
+}
+
+func merge(cs ...chan struct{}) <-chan struct{} {
+	out := make(chan struct{}, 1)
+	for _, c := range cs {
+		go func(ch chan struct{}) {
+			<-ch
+			select {
+			case out <- struct{}{}:
+			default:
+			}
+		}(c)
+	}
+	return out
 }

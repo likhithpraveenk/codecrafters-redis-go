@@ -1,46 +1,108 @@
 package store
 
 import (
-	"maps"
 	"net"
 	"sync"
 )
 
-var replicaConns = make(map[int]net.Conn)
-var replicaConnMu sync.Mutex
+type Replica struct {
+	ID    int
+	Conn  net.Conn
+	Ack   int64
+	AckCh chan struct{}
+	Addr  string
+	Port  string
+}
 
-var replicaAcks sync.Map
+var (
+	replicaMu     sync.Mutex
+	replicas      = make(map[int]*Replica)
+	connToReplica = make(map[net.Conn]int)
+	nextID        = 1
+)
 
 func UpdateReplicaAck(conn net.Conn, offset int64) {
-	replicaAcks.Store(conn, offset)
+	replicaMu.Lock()
+	defer replicaMu.Unlock()
+
+	id, ok := connToReplica[conn]
+	if !ok {
+		return
+	}
+
+	r, ok := replicas[id]
+	if !ok {
+		return
+	}
+
+	if offset > r.Ack {
+		r.Ack = offset
+		select {
+		case r.AckCh <- struct{}{}:
+		default:
+		}
+	}
+}
+
+func ListAckChans() []chan struct{} {
+	replicaMu.Lock()
+	defer replicaMu.Unlock()
+	ackChans := make([]chan struct{}, 0, len(replicas))
+	for _, r := range replicas {
+		ackChans = append(ackChans, r.AckCh)
+	}
+	return ackChans
 }
 
 func CountReplicasAtLeast(offset int64) int64 {
+	replicaMu.Lock()
+	defer replicaMu.Unlock()
 	count := 0
-	replicaAcks.Range(func(_, v any) bool {
-		if v.(int64) >= offset {
+	for _, r := range replicas {
+		if r.Ack >= offset {
 			count++
 		}
-		return true
-	})
+	}
 	return int64(count)
 }
 
-func RegisterReplicaConn(id int, conn net.Conn) {
-	replicaConnMu.Lock()
-	defer replicaConnMu.Unlock()
-	replicaConns[id] = conn
+func AddReplica(conn net.Conn, addr, port string) {
+	replicaMu.Lock()
+	defer replicaMu.Unlock()
+	id := nextID
+	nextID++
+
+	r := &Replica{
+		ID:    id,
+		Conn:  conn,
+		Ack:   0,
+		AckCh: make(chan struct{}, 1),
+		Addr:  addr,
+		Port:  port,
+	}
+	replicas[id] = r
+	ConnectedSlaves = len(replicas)
+	connToReplica[conn] = id
 }
 
-func ListReplicaConns() map[int]net.Conn {
-	replicaConnMu.Lock()
-	defer replicaConnMu.Unlock()
-	list := make(map[int]net.Conn)
-	maps.Copy(list, replicaConns)
+func ListReplica() []*Replica {
+	replicaMu.Lock()
+	defer replicaMu.Unlock()
+	list := make([]*Replica, 0, len(replicas))
+	for _, r := range replicas {
+		list = append(list, r)
+	}
 	return list
 }
 
-func DeleteReplicaConn(id int) {
-	delete(replicaConns, id)
-	ConnectedSlaves = len(replicaConns)
+func RemoveReplica(conn net.Conn) {
+	replicaMu.Lock()
+	defer replicaMu.Unlock()
+	id, ok := connToReplica[conn]
+	if !ok {
+		return
+	}
+	delete(connToReplica, conn)
+	delete(replicas, id)
+	ConnectedSlaves = len(replicas)
 }
