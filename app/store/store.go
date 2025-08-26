@@ -22,10 +22,14 @@ type Item struct {
 	expiresAt time.Time
 }
 
-var (
-	store = make(map[string]Item)
+type Store struct {
 	mu    sync.RWMutex
-)
+	items map[string]Item
+}
+
+var GlobalStore = &Store{
+	items: make(map[string]Item),
+}
 
 var EmptyRDB = []byte{
 	0x52, 0x45, 0x44, 0x49, 0x53, 0x30, 0x30, 0x31,

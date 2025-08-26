@@ -21,10 +21,10 @@ func notifyWaiters(key string) {
 }
 
 func LRPush(key string, values []string, toLeft bool) (int64, error) {
-	mu.Lock()
-	defer mu.Unlock()
+	GlobalStore.mu.Lock()
+	defer GlobalStore.mu.Unlock()
 
-	it, exists := store[key]
+	it, exists := GlobalStore.items[key]
 	if !exists {
 		it = Item{typ: TypeList, value: []string{}}
 	} else if it.typ != TypeList {
@@ -39,16 +39,16 @@ func LRPush(key string, values []string, toLeft bool) (int64, error) {
 		list = append(list, values...)
 	}
 	it.value = list
-	store[key] = it
+	GlobalStore.items[key] = it
 	notifyWaiters(key)
 	return int64(len(list)), nil
 }
 
 func LPop(key string) (string, bool) {
-	mu.Lock()
-	defer mu.Unlock()
+	GlobalStore.mu.Lock()
+	defer GlobalStore.mu.Unlock()
 
-	it, exists := store[key]
+	it, exists := GlobalStore.items[key]
 	if !exists || it.typ != TypeList {
 		return "", false
 	}
@@ -59,10 +59,10 @@ func LPop(key string) (string, bool) {
 	value := list[0]
 	rest := list[1:]
 	if len(rest) == 0 {
-		delete(store, key)
+		delete(GlobalStore.items, key)
 	} else {
 		it.value = rest
-		store[key] = it
+		GlobalStore.items[key] = it
 	}
 	return value, true
 }
@@ -99,16 +99,16 @@ func BLPop(keys []string, timeout time.Duration) (string, string, error) {
 }
 
 func tryPopFromKeys(keys []string) (string, string, bool) {
-	mu.Lock()
-	defer mu.Unlock()
+	GlobalStore.mu.Lock()
+	defer GlobalStore.mu.Unlock()
 	for _, key := range keys {
-		it, exists := store[key]
+		it, exists := GlobalStore.items[key]
 		if exists && it.typ == TypeList {
 			list := it.value.([]string)
 			if len(list) > 0 {
 				val := list[0]
 				it.value = list[1:]
-				store[key] = it
+				GlobalStore.items[key] = it
 				return key, val, true
 			}
 		}
@@ -131,7 +131,7 @@ func cleanupWaiters(keys []string, waitCh chan struct{}) {
 }
 
 func LPopCount(key string, count int) ([]string, error) {
-	it, exists := store[key]
+	it, exists := GlobalStore.items[key]
 	if !exists {
 		return nil, fmt.Errorf("ERR The KEY '%s' does not exist", key)
 	}
@@ -148,18 +148,18 @@ func LPopCount(key string, count int) ([]string, error) {
 	values := list[:count]
 	rest := list[count:]
 	if len(rest) == 0 {
-		delete(store, key)
+		delete(GlobalStore.items, key)
 	} else {
 		it.value = rest
-		store[key] = it
+		GlobalStore.items[key] = it
 	}
 	return values, nil
 }
 
 func ListLength(key string) (int64, error) {
-	mu.RLock()
-	defer mu.RUnlock()
-	it, exists := store[key]
+	GlobalStore.mu.RLock()
+	defer GlobalStore.mu.RUnlock()
+	it, exists := GlobalStore.items[key]
 	if !exists {
 		return 0, nil
 	} else if it.typ != TypeList {
@@ -170,9 +170,9 @@ func ListLength(key string) (int64, error) {
 }
 
 func LRange(key string, start int, stop int) ([]string, error) {
-	mu.RLock()
-	defer mu.RUnlock()
-	it, exists := store[key]
+	GlobalStore.mu.RLock()
+	defer GlobalStore.mu.RUnlock()
+	it, exists := GlobalStore.items[key]
 	if !exists {
 		return []string{}, nil
 	} else if it.typ != TypeList {

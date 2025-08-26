@@ -20,10 +20,10 @@ type StreamEntry struct {
 }
 
 func XAdd(key, id string, fields []string) (string, error) {
-	mu.Lock()
-	defer mu.Unlock()
+	GlobalStore.mu.Lock()
+	defer GlobalStore.mu.Unlock()
 
-	it, exists := store[key]
+	it, exists := GlobalStore.items[key]
 	if !exists {
 		it = Item{typ: TypeStream, value: []StreamEntry{}}
 	} else if it.typ != TypeStream {
@@ -40,7 +40,7 @@ func XAdd(key, id string, fields []string) (string, error) {
 	}
 	stream = append(stream, StreamEntry{ID: newId, Fields: fields})
 	it.value = stream
-	store[key] = it
+	GlobalStore.items[key] = it
 	sWaitersMu.Lock()
 	for _, ch := range sWaiters[key] {
 		close(ch)
@@ -141,9 +141,9 @@ func isIDEqual(ms, seq, lastMs, lastSeq int64) bool {
 }
 
 func XRange(key, startStr, endStr string) ([][]any, error) {
-	mu.RLock()
-	defer mu.RUnlock()
-	it, exists := store[key]
+	GlobalStore.mu.RLock()
+	defer GlobalStore.mu.RUnlock()
+	it, exists := GlobalStore.items[key]
 	if !exists {
 		return [][]any{}, nil
 	} else if it.typ != TypeStream {
@@ -176,14 +176,14 @@ func XRange(key, startStr, endStr string) ([][]any, error) {
 }
 
 func XRead(keys, ids []string) ([][]any, error) {
-	mu.RLock()
-	defer mu.RUnlock()
+	GlobalStore.mu.RLock()
+	defer GlobalStore.mu.RUnlock()
 
 	noOfStreams := len(keys)
 	result := make([][]any, 0)
 
 	for i := range noOfStreams {
-		item, exists := store[keys[i]]
+		item, exists := GlobalStore.items[keys[i]]
 		if !exists {
 			continue
 		}
@@ -213,7 +213,7 @@ func normalizeIDs(keys, ids []string) []string {
 	norm := make([]string, len(ids))
 	for i, key := range keys {
 		if ids[i] == "$" {
-			item, exists := store[key]
+			item, exists := GlobalStore.items[key]
 			if exists && item.typ == TypeStream {
 				entries := item.value.([]StreamEntry)
 				if len(entries) > 0 {

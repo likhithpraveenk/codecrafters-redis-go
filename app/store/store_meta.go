@@ -3,6 +3,7 @@ package store
 import (
 	"fmt"
 	"net"
+	"path/filepath"
 	"strings"
 	"sync"
 )
@@ -35,6 +36,15 @@ var (
 	ReplicaOffset    = int64(0)
 )
 
+type Config struct {
+	Port       int
+	ReplicaOf  string
+	Dir        string
+	DBFilename string
+}
+
+var ServerConfig Config
+
 func GetTxnState(conn net.Conn) *TxnState {
 	txnMu.Lock()
 	defer txnMu.Unlock()
@@ -51,9 +61,9 @@ func ClearTxnState(conn net.Conn) {
 }
 
 func GetType(key string) string {
-	mu.RLock()
-	defer mu.RUnlock()
-	it, exists := store[key]
+	GlobalStore.mu.RLock()
+	defer GlobalStore.mu.RUnlock()
+	it, exists := GlobalStore.items[key]
 	if !exists {
 		return "none"
 	}
@@ -90,4 +100,21 @@ func Info() string {
 		sb.WriteString(fmt.Sprintf("master_link_status:%s\r\n", MasterLinkStatus))
 	}
 	return sb.String()
+}
+
+func Keys(pattern string) []string {
+	GlobalStore.mu.RLock()
+	defer GlobalStore.mu.RUnlock()
+
+	var results []string
+	for key := range GlobalStore.items {
+		matched, err := filepath.Match(pattern, key)
+		if err != nil {
+			continue
+		}
+		if matched {
+			results = append(results, key)
+		}
+	}
+	return results
 }

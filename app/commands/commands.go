@@ -28,6 +28,9 @@ func Init() {
 	registerCommand("XREAD", handleXRead)
 	registerCommand("INFO", handleInfo)
 	registerCommand("WAIT", handleWait)
+	registerCommand("CONFIG", handleConfig)
+	registerCommand("KEYS", handleKeys)
+	registerCommand("SAVE", handleSave)
 }
 
 var commandHandlers = map[string]func([]string) (any, error){}
