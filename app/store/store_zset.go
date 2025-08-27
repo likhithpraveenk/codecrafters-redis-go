@@ -23,7 +23,7 @@ func ZAdd(key string, score float64, member string) (int64, error) {
 			},
 		}
 	} else if it.typ != TypeZSet {
-		return 0, fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
+		return -1, fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
 	}
 	ss := it.value.(sortedSet)
 	_, exists := ss.scores[member]
@@ -37,6 +37,25 @@ func ZAdd(key string, score float64, member string) (int64, error) {
 	return 1, nil
 }
 
+func ZRank(key, member string) (int64, error) {
+	GlobalStore.mu.RLock()
+	defer GlobalStore.mu.RUnlock()
+	it, ok := GlobalStore.items[key]
+	if !ok {
+		return -1, nil
+	}
+	if it.typ != TypeZSet {
+		return -1, fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
+	}
+	ss := it.value.(sortedSet)
+	for i, m := range ss.order {
+		if m == member {
+			return int64(i), nil
+		}
+	}
+	return -1, nil
+}
+
 func (ss *sortedSet) rebuildOrder() {
 	ss.order = ss.order[:0]
 	for member := range ss.scores {
@@ -44,6 +63,10 @@ func (ss *sortedSet) rebuildOrder() {
 	}
 
 	sort.Slice(ss.order, func(i, j int) bool {
-		return ss.scores[ss.order[i]] < ss.scores[ss.order[j]]
+		si, sj := ss.scores[ss.order[i]], ss.scores[ss.order[j]]
+		if si == sj {
+			return ss.order[i] < ss.order[j]
+		}
+		return si < sj
 	})
 }
