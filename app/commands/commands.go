@@ -37,6 +37,7 @@ func Init() {
 	registerCommand("ZRANGE", handleZRange)
 	registerCommand("ZCARD", handleZCard)
 	registerCommand("ZSCORE", handleZScore)
+	registerCommand("ZREM", handleZRem)
 }
 
 var commandHandlers = map[string]func([]string) (any, error){}

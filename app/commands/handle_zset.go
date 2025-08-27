@@ -78,3 +78,10 @@ func handleZScore(cmd []string) (any, error) {
 	}
 	return score, nil
 }
+
+func handleZRem(cmd []string) (any, error) {
+	if len(cmd) < 3 {
+		return nil, fmt.Errorf("wrong number of arguments for 'ZREM'")
+	}
+	return store.ZRemove(cmd[1], cmd[2])
+}

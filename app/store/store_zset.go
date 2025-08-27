@@ -116,6 +116,31 @@ func ZScore(key, member string) (string, error) {
 	return strconv.FormatFloat(score, 'f', -1, 64), nil
 }
 
+func ZRemove(key, member string) (int64, error) {
+	GlobalStore.mu.Lock()
+	defer GlobalStore.mu.Unlock()
+	it, ok := GlobalStore.items[key]
+	if !ok {
+		return 0, nil
+	} else if it.typ != TypeZSet {
+		return -1, fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
+	}
+	ss := it.value.(sortedSet)
+	if _, ok := ss.scores[member]; !ok {
+		return 0, nil
+	}
+	delete(ss.scores, member)
+	for i, m := range ss.order {
+		if m == member {
+			ss.order = append(ss.order[:i], ss.order[i+1:]...)
+			break
+		}
+	}
+	it.value = ss
+	GlobalStore.items[key] = it
+	return 1, nil
+}
+
 func (ss *sortedSet) rebuildOrder() {
 	ss.order = ss.order[:0]
 	for member := range ss.scores {
