@@ -3,6 +3,7 @@ package store
 import (
 	"fmt"
 	"sort"
+	"strconv"
 )
 
 type sortedSet struct {
@@ -96,6 +97,23 @@ func ZCard(key string) (int64, error) {
 		return -1, fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
 	}
 	return int64(len(it.value.(sortedSet).order)), nil
+}
+
+func ZScore(key, member string) (string, error) {
+	GlobalStore.mu.RLock()
+	defer GlobalStore.mu.RUnlock()
+	it, ok := GlobalStore.items[key]
+	if !ok {
+		return "", nil
+	}
+	if it.typ != TypeZSet {
+		return "", fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
+	}
+	score, ok := it.value.(sortedSet).scores[member]
+	if !ok {
+		return "", nil
+	}
+	return strconv.FormatFloat(score, 'f', -1, 64), nil
 }
 
 func (ss *sortedSet) rebuildOrder() {

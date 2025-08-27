@@ -63,3 +63,18 @@ func handleZCard(cmd []string) (any, error) {
 	}
 	return store.ZCard(cmd[1])
 }
+
+func handleZScore(cmd []string) (any, error) {
+	if len(cmd) < 3 {
+		return nil, fmt.Errorf("wrong number of arguments for 'ZSCORE'")
+	}
+	key, member := cmd[1], cmd[2]
+	score, err := store.ZScore(key, member)
+	if err != nil {
+		return nil, err
+	}
+	if score == "" {
+		return nil, nil
+	}
+	return score, nil
+}
