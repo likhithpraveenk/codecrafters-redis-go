@@ -56,3 +56,10 @@ func handleZRange(cmd []string) (any, error) {
 	}
 	return result, nil
 }
+
+func handleZCard(cmd []string) (any, error) {
+	if len(cmd) < 2 {
+		return nil, fmt.Errorf("wrong number of arguments for 'ZCARD'")
+	}
+	return store.ZCard(cmd[1])
+}

@@ -85,6 +85,19 @@ func ZRange(key string, start, stop int) ([]string, error) {
 	return list[start : stop+1], nil
 }
 
+func ZCard(key string) (int64, error) {
+	GlobalStore.mu.RLock()
+	defer GlobalStore.mu.RUnlock()
+	it, ok := GlobalStore.items[key]
+	if !ok {
+		return 0, nil
+	}
+	if it.typ != TypeZSet {
+		return -1, fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
+	}
+	return int64(len(it.value.(sortedSet).order)), nil
+}
+
 func (ss *sortedSet) rebuildOrder() {
 	ss.order = ss.order[:0]
 	for member := range ss.scores {
