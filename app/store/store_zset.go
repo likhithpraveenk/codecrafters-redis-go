@@ -56,6 +56,35 @@ func ZRank(key, member string) (int64, error) {
 	return -1, nil
 }
 
+func ZRange(key string, start, stop int) ([]string, error) {
+	GlobalStore.mu.RLock()
+	defer GlobalStore.mu.RUnlock()
+	it, exists := GlobalStore.items[key]
+	if !exists {
+		return []string{}, nil
+	} else if it.typ != TypeZSet {
+		return nil, fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
+	}
+	list := it.value.(sortedSet).order
+	n := len(list)
+	if start < 0 {
+		start = n + start
+	}
+	if stop < 0 {
+		stop = n + stop
+	}
+	if start < 0 {
+		start = 0
+	}
+	if stop >= n {
+		stop = n - 1
+	}
+	if start > stop || start >= n {
+		return []string{}, nil
+	}
+	return list[start : stop+1], nil
+}
+
 func (ss *sortedSet) rebuildOrder() {
 	ss.order = ss.order[:0]
 	for member := range ss.scores {
