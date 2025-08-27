@@ -32,6 +32,7 @@ func Init() {
 	registerCommand("KEYS", handleKeys)
 	registerCommand("SAVE", handleSave)
 	registerCommand("PUBLISH", handlePublish)
+	registerCommand("ZADD", handleZAdd)
 }
 
 var commandHandlers = map[string]func([]string) (any, error){}

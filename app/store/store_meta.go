@@ -80,7 +80,7 @@ func GetType(key string) string {
 	case TypeSet:
 		return "set"
 	case TypeZSet:
-		return "zset"
+		return "sorted set"
 	default:
 		return "none"
 	}

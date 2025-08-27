@@ -14,9 +14,9 @@ var (
 	sWaiters   = make(map[string][]chan struct{})
 )
 
-type StreamEntry struct {
-	ID     string
-	Fields []string
+type streamEntry struct {
+	id     string
+	fields []string
 }
 
 func XAdd(key, id string, fields []string) (string, error) {
@@ -25,20 +25,20 @@ func XAdd(key, id string, fields []string) (string, error) {
 
 	it, exists := GlobalStore.items[key]
 	if !exists {
-		it = Item{typ: TypeStream, value: []StreamEntry{}}
+		it = Item{typ: TypeStream, value: []streamEntry{}}
 	} else if it.typ != TypeStream {
 		return "", fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
 	}
-	stream := it.value.([]StreamEntry)
+	stream := it.value.([]streamEntry)
 	var lastID string
 	if len(stream) > 0 {
-		lastID = stream[len(stream)-1].ID
+		lastID = stream[len(stream)-1].id
 	}
 	newId, err := validateAndGenerateStreamID(id, lastID)
 	if err != nil {
 		return "", err
 	}
-	stream = append(stream, StreamEntry{ID: newId, Fields: fields})
+	stream = append(stream, streamEntry{id: newId, fields: fields})
 	it.value = stream
 	GlobalStore.items[key] = it
 	sWaitersMu.Lock()
@@ -149,7 +149,7 @@ func XRange(key, startStr, endStr string) ([][]any, error) {
 	} else if it.typ != TypeStream {
 		return nil, fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
 	}
-	stream := it.value.([]StreamEntry)
+	stream := it.value.([]streamEntry)
 	var startMs, startSeq, endMs, endSeq int64
 	if startStr == "-" {
 		startMs, startSeq = 0, 0
@@ -165,10 +165,10 @@ func XRange(key, startStr, endStr string) ([][]any, error) {
 	result := make([][]any, 0)
 
 	for _, entry := range stream {
-		idMs, idSeq := parseIDParts(entry.ID)
+		idMs, idSeq := parseIDParts(entry.id)
 		if isIDGreater(idMs, idSeq, startMs, startSeq) || isIDEqual(idMs, idSeq, startMs, startSeq) {
 			if isIDLesser(idMs, idSeq, endMs, endSeq) || isIDEqual(idMs, idSeq, endMs, endSeq) {
-				result = append(result, []any{entry.ID, entry.Fields})
+				result = append(result, []any{entry.id, entry.fields})
 			}
 		}
 	}
@@ -190,13 +190,13 @@ func XRead(keys, ids []string) ([][]any, error) {
 		if item.typ != TypeStream {
 			return nil, fmt.Errorf("WRONGTYPE Operation against a key holding the wrong kind of value")
 		}
-		streamEntries := item.value.([]StreamEntry)
+		streamEntries := item.value.([]streamEntry)
 		idMs, idSeq := parseIDParts(ids[i])
 		matched := []any{}
 		for _, entry := range streamEntries {
-			entryMs, entrySeq := parseIDParts(entry.ID)
+			entryMs, entrySeq := parseIDParts(entry.id)
 			if isIDGreater(entryMs, entrySeq, idMs, idSeq) {
-				matched = append(matched, []any{entry.ID, entry.Fields})
+				matched = append(matched, []any{entry.id, entry.fields})
 			}
 		}
 		if len(matched) > 0 {
@@ -215,9 +215,9 @@ func normalizeIDs(keys, ids []string) []string {
 		if ids[i] == "$" {
 			item, exists := GlobalStore.items[key]
 			if exists && item.typ == TypeStream {
-				entries := item.value.([]StreamEntry)
+				entries := item.value.([]streamEntry)
 				if len(entries) > 0 {
-					norm[i] = entries[len(entries)-1].ID
+					norm[i] = entries[len(entries)-1].id
 					continue
 				}
 			}
